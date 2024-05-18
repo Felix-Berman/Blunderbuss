@@ -160,7 +160,7 @@ fn negamax(pos: &mut Position, mut alpha: i32, beta: i32, depth: u8, ply: usize,
     }
 
     if depth == 0 {
-        return evaluate(pos);
+        return quiescence_search(pos, alpha, beta, ply, info);
     }
     
     info.triangular_pv[pv_idx] = None;
@@ -188,6 +188,10 @@ fn negamax(pos: &mut Position, mut alpha: i32, beta: i32, depth: u8, ply: usize,
 
         let score = -negamax(pos, -beta, -alpha, depth - 1, ply + 1, next_pv_idx, info);
         info.nodes += 1;
+
+        if info.nodes > info.stop_nodes || info.stop {
+            return alpha
+        }
         
         if score >= beta {
             return beta
@@ -199,10 +203,6 @@ fn negamax(pos: &mut Position, mut alpha: i32, beta: i32, depth: u8, ply: usize,
         }
 
         *pos = prev;
-
-        if info.nodes > info.stop_nodes || info.stop {
-            return alpha
-        }
     }
 
     if legal_moves == 0 {
@@ -210,6 +210,46 @@ fn negamax(pos: &mut Position, mut alpha: i32, beta: i32, depth: u8, ply: usize,
             return -CHECKMATE + ply as i32
         } else {
             return STALEMATE
+        }
+    }
+
+    alpha
+}
+
+fn quiescence_search(pos: &mut Position, mut alpha: i32, beta: i32, ply: usize, info: &mut SearchInfo) -> i32 {
+    if ply as u8 > info.seldepth {
+        info.seldepth = ply as u8;
+    }
+
+    let standing_pat = evaluate(pos);
+    if standing_pat >= beta {
+        return beta
+    }
+
+    if alpha < standing_pat {
+        alpha = standing_pat;
+    }
+
+    let mut captures = Vec::new();
+    pos.gen_captures(&mut captures);
+
+    for capture in captures {
+        let prev = pos.make_move(capture);
+        if pos.is_check(prev.turn) {
+            *pos = prev;
+            continue
+        }
+
+        info.nodes += 1;
+        let score = -quiescence_search(pos, -beta, -alpha, ply + 1, info);
+        *pos = prev;
+
+        if score >= beta {
+            return beta
+        }
+
+        if score > alpha {
+            alpha = score;
         }
     }
 
