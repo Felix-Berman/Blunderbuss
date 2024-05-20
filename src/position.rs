@@ -215,8 +215,8 @@ impl From<usize> for Piece {
     }
 }
 
-impl Index<Piece> for [Bitboard; 12] {  
-    type Output = Bitboard;
+impl<T> Index<Piece> for [T; 12] {  
+    type Output = T;
     fn index(&self, piece: Piece) -> &Self::Output {
         match piece {
             Pawn(White) => &self[0],
@@ -235,7 +235,7 @@ impl Index<Piece> for [Bitboard; 12] {
     }
 }
 
-impl IndexMut<Piece> for [Bitboard; 12] {
+impl<T> IndexMut<Piece> for [T; 12] {
     fn index_mut(&mut self, piece: Piece) -> &mut Self::Output {
         match piece {
             Pawn(White) => &mut self[0],
@@ -250,6 +250,33 @@ impl IndexMut<Piece> for [Bitboard; 12] {
             Rook(Black) => &mut self[9],
             Queen(Black) => &mut self[10],
             King(Black) => &mut self[11],
+        }
+    }
+}
+
+impl<T> Index<Piece> for [T; 6] {
+    type Output = T;
+    fn index(&self, piece: Piece) -> &Self::Output {
+        match piece {
+            Pawn(_) => &self[0],
+            Knight(_) => &self[1],
+            Bishop(_) => &self[2],
+            Rook(_) => &self[3],
+            Queen(_) => &self[4],
+            King(_) => &self[5],
+        }
+    }
+}
+
+impl<T> IndexMut<Piece> for [T; 6] {
+    fn index_mut(&mut self, piece: Piece) -> &mut Self::Output {
+        match piece {
+            Pawn(_) => &mut self[0],
+            Knight(_) => &mut self[1],
+            Bishop(_) => &mut self[2],
+            Rook(_) => &mut self[3],
+            Queen(_) => &mut self[4],
+            King(_) => &mut self[5],
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::position::Position;
+use crate::position::{Piece, Position};
 
 pub fn evaluate(pos: &Position) -> i32 {
     let mut mg = [0; 2];
@@ -50,6 +50,19 @@ const fn gen_pesto_tables() -> ([[i32; 64]; 12], [[i32; 64]; 12]) {
 
 const MG_PIECE_VALUES: [i32; 6] = [82, 337, 365, 477, 1025, 0];
 const EG_PIECE_VALUES: [i32; 6] = [94, 281, 297, 512,  936, 0];
+
+impl Piece {
+    pub fn value(&self) -> i32 {
+        match self {
+            Piece::Pawn(_) => MG_PIECE_VALUES[0],
+            Piece::Knight(_) => MG_PIECE_VALUES[1],
+            Piece::Bishop(_) => MG_PIECE_VALUES[2],
+            Piece::Rook(_) => MG_PIECE_VALUES[3],
+            Piece::Queen(_) => MG_PIECE_VALUES[4],
+            Piece::King(_) => MG_PIECE_VALUES[5],
+        }
+    }
+}
 
 const MG_PESTO_TABLES: [[i32; 64]; 6] = [
     MG_PAWN_TABLE, MG_KNIGHT_TABLE, MG_BISHOP_TABLE, MG_ROOK_TABLE, MG_QUEEN_TABLE, MG_KING_TABLE

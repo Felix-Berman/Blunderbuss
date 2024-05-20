@@ -60,7 +60,7 @@ impl Engine {
                         UCINewGame => self.position = Position::new(),
                         Position(position, history) => {
                             self.position = position;
-                            self.history = history;
+                            self.history = *history;
                         },
                         Go(control) => self.search(control),
                         Stop => self.search_tx.send(SearchCommand::Stop)?,
@@ -116,7 +116,7 @@ impl Engine {
         let rx = self.search_rx.clone();
 
         self.search_time = Instant::now();
-        let history = self.history.clone();
+        let history = self.history;
         let handle = thread::spawn(
             move || iterative_deepening(position, control.depth, control.nodes, history, tx, rx)
         );

@@ -18,7 +18,7 @@ pub enum Command {
     IsReady,
     _SetOption(EngineOption),
     UCINewGame,
-    Position(Position, [u64; MAX_GAME_PLY]),
+    Position(Position, Box<[u64; MAX_GAME_PLY]>),
     Go(SearchControl),
     Stop,
     PonderHit,
@@ -109,7 +109,7 @@ fn position(mut tokens: SplitWhitespace) -> Option<Command> {
         }
     }
 
-    Some(Command::Position(position, history))
+    Some(Command::Position(position, Box::new(history)))
 }
 
 fn go(mut tokens: SplitWhitespace) -> Option<Command> {

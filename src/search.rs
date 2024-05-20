@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crossbeam_channel::{Receiver, SendError, Sender};
 
-use crate::{engine::MAX_GAME_PLY, eval::evaluate, movegen::Move, position::Position};
+use crate::{engine::MAX_GAME_PLY, eval::evaluate, movegen::{Move, MoveKind}, position::Position};
 
 pub const MAX_DEPTH: usize = 64;
 const PV_SIZE: usize = MAX_DEPTH * (MAX_DEPTH + 1) / 2 ;
@@ -154,16 +154,15 @@ fn negamax(pos: &mut Position, mut alpha: i32, beta: i32, depth: u8, ply: usize,
         return quiescence_search(pos, alpha, beta, ply, info);
     }
     
-    // info.triangular_pv[pv_idx] = None;
     let next_pv_idx = pv_idx + MAX_DEPTH - ply; 
 
     let mut moves = Vec::new();
     pos.gen_moves(&mut moves);
-    // score_moves(&mut moves, ply, info);
+    score_moves(&mut moves, ply, info);
 
     let mut legal_moves = 0;
     for i in 0..moves.len() {
-        let mv = next_move(&mut moves, i, info, ply);
+        let mv = next_move(&mut moves, i);
         let prev = pos.make_move(mv);
         if pos.is_check(prev.turn) {
             *pos = prev;
@@ -230,12 +229,22 @@ fn quiescence_search(pos: &mut Position, mut alpha: i32, beta: i32, ply: usize, 
 
     let mut captures = Vec::new();
     pos.gen_captures(&mut captures);
+    score_moves(&mut captures, ply, info);
 
-    for capture in captures {
+    for i in 0..captures.len() {
+        let capture = next_move(&mut captures, i);
         let prev = pos.make_move(capture);
         if pos.is_check(prev.turn) {
             *pos = prev;
             continue
+        }
+
+        // delta pruning. Need to consider effect on endgame
+        if let MoveKind::Capture(piece) | MoveKind::PromotionCapture(_, piece) = capture.kind {
+            if standing_pat + piece.value() + 200 <= alpha {
+                *pos = prev;
+                continue
+            }
         }
 
         info.nodes += 1;
@@ -268,23 +277,23 @@ fn detect_repetition(pos: &Position, history: [u64; MAX_GAME_PLY]) -> bool {
     false
 }
 
-fn _score_moves(moves: &mut Vec<Move>, ply: usize, info: &SearchInfo) {
+fn score_moves(moves: &mut [Move], ply: usize, info: &SearchInfo) {
 
     if let Some(pv_mv) = info.triangular_pv[ply] {
         for mv in moves {
             if *mv == pv_mv {
                 mv.sort_score += 100;
-                break
             }
+            mv.sort_score += mvv_lva(mv);
         }
     }
 }
 
-fn next_move(moves: &mut Vec<Move>, current: usize, info: &SearchInfo, ply: usize) -> Move {
+fn next_move(moves: &mut [Move], current: usize) -> Move {
     let mut next_best = moves[current];
 
     for i in (current + 1)..moves.len() {
-        if  info.triangular_pv[ply].is_some_and(|mv| mv == moves[i]) {
+        if  moves[i].sort_score > next_best.sort_score {
             next_best = moves[i];
             moves[i] = moves[current];
             moves[current] = next_best;
@@ -292,3 +301,23 @@ fn next_move(moves: &mut Vec<Move>, current: usize, info: &SearchInfo, ply: usiz
     }
     next_best
 }
+
+fn mvv_lva(mv: &Move) -> u8 {
+    let attacker = mv.piece;
+    let (MoveKind::Capture(victim) | MoveKind::PromotionCapture(_, victim)) = mv.kind else {
+        return 0
+    };
+
+    MVV_LVA_TBL[victim][attacker]
+}
+
+#[allow(clippy::zero_prefixed_literal)]
+const MVV_LVA_TBL: [[u8; 6]; 6] = [
+//    p   n   b   r   q   k   attacker
+    [06, 05, 04, 03, 02, 01], // pawn victim
+    [12, 11, 10, 09, 08, 07], // knight victim
+    [18, 17, 16, 15, 14, 13], // bishop victim
+    [24, 23, 22, 21, 20, 19], // rook victim
+    [30, 29, 28, 27, 26, 25], // queen victim
+    [00, 00, 00, 00, 00, 00], // king victim
+];

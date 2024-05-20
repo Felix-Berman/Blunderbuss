@@ -83,10 +83,6 @@ impl Bitboard {
         self.0 |= 1 << sq as u64;
     }
 
-    pub fn set_masked(&mut self, sq: Square, mask: Bitboard) {
-        self.0 |= mask.0 & (1 << sq as u64);
-    }
-
     pub fn reset(&mut self, sq: Square) {
         self.0 &= !(1 << sq as u64);
     }
@@ -95,20 +91,12 @@ impl Bitboard {
         (self.0 & (1 << sq as u64)) != 0
     }
 
-    pub fn count_bits(&self) -> u32 {
-        self.0.count_ones()
-    }
-
     pub fn get_lsb(&self) -> Option<Square> {
         Square::from_u32(self.0.trailing_zeros())
     }
 
     pub fn intersects(&self, other: Bitboard) -> bool {
         (self.0 & other.0) != 0
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0 == 0
     }
 }
 
