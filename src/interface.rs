@@ -27,6 +27,7 @@ pub enum Command {
     Perft(u8),
     Evaluate,
     Move(String),
+    Benchmark,
 }
 
 #[derive(Default, Debug)]
@@ -83,6 +84,7 @@ pub fn parse_command(line: &str) -> Option<Command> {
         "perft" => Command::Perft(tokens.next()?.parse().ok()?),
         "eval" => Command::Evaluate,
         "move" => Command::Move(tokens.next()?.to_string()),
+        "bench" => Command::Benchmark,
         _ => return None
     };
 

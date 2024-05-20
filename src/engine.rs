@@ -8,10 +8,11 @@ use crate::{
     interface::{id, parse_command, write_currmove_info, write_full_info, Command::*, SearchControl}, 
     perft::perft_divide, 
     position::{Colour, Position}, 
-    search::{iterative_deepening, SearchCommand, SendInfo::{self, *}} 
+    search::{iterative_deepening, SearchCommand, SendInfo} 
 };
 
 pub const MAX_GAME_PLY: usize = 256; 
+pub const CURRMOVE_WAIT_TIME: u32 = 3000;
 
 pub struct Engine {
     pub debug: bool,
@@ -24,6 +25,7 @@ pub struct Engine {
     pub info_tx: Sender<SendInfo>,
     pub info_rx: Receiver<SendInfo>,
     pub history: [u64; MAX_GAME_PLY],
+    pub nodes: u32,
 }
 
 impl Engine {
@@ -42,12 +44,14 @@ impl Engine {
             info_tx,
             info_rx,
             history: [0; MAX_GAME_PLY],
+            nodes: 0,
         }
     }
 
-    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        
-        let stdin_rx = spawn_reader();
+    pub fn run(&mut self, cmd_args: String) -> Result<(), Box<dyn Error>> {
+
+        let (stdin_rx, stdin_tx) = spawn_reader();
+        stdin_tx.send(cmd_args)?;
         
         'running: loop {
             if let Ok(input) = stdin_rx.try_recv() {     
@@ -73,28 +77,13 @@ impl Engine {
                             if let Some(mv) = self.position.find_algebraic_move(&mv_str) {
                                 self.position.make_move(mv);
                             }
-                        }
+                        },
+                        Benchmark => self.benchmark(),
                     }
                 }
             }
-
-            for info in self.info_rx.try_iter() {
-                match info {
-                    Full(info) => write_full_info(info),
-                    CurrMove(info) => if self.search_time.elapsed().as_millis() > 1000 {
-                        write_currmove_info(info)
-                    },
-                    Done(mv) => {
-                        if let Some(mv) = mv {
-                            println!("bestmove {}", mv);
-                        } else {
-                            println!("bestmove None");
-                        }
-                        let handle = self.search_handle.take().unwrap();
-                        handle.join().unwrap();
-                    }
-                }
-            }
+            
+            self.receive_info();
 
             if self.max_time != 0 && self.search_time.elapsed().as_millis() as u32 > self.max_time {
                 self.search_tx.send(SearchCommand::Stop)?;
@@ -106,7 +95,7 @@ impl Engine {
     }
 
 
-    fn search(&mut self, control: SearchControl) {
+    pub fn search(&mut self, control: SearchControl) {
         if self.search_handle.is_some() {
             return
         }
@@ -126,7 +115,7 @@ impl Engine {
         self.set_search_limit(control);
     }
 
-    fn set_search_limit(&mut self, control: SearchControl) {
+    pub fn set_search_limit(&mut self, control: SearchControl) {
         if control.infinite {
             return
         }
@@ -141,6 +130,29 @@ impl Engine {
         }
     }
 
+    pub fn receive_info(&mut self) {
+        for info in self.info_rx.try_iter() {
+            match info {
+                SendInfo::Full(info) => {
+                    self.nodes = info.nodes;
+                    write_full_info(info);
+                },
+                SendInfo::CurrMove(info) => if self.search_time.elapsed().as_millis() > CURRMOVE_WAIT_TIME.into() {
+                    write_currmove_info(info)
+                },
+                SendInfo::Done(mv) => {
+                    if let Some(mv) = mv {
+                        println!("bestmove {}", mv);
+                    } else {
+                        println!("bestmove None");
+                    }
+                    let handle = self.search_handle.take().unwrap();
+                    handle.join().unwrap();
+                }
+            }
+        }
+    }
+
 }
 
 fn calculate_allowed_time(time: u32, _inc: u32, mut movestogo: u8) -> u32 {
@@ -151,13 +163,14 @@ fn calculate_allowed_time(time: u32, _inc: u32, mut movestogo: u8) -> u32 {
     time/movestogo as u32 - 500
 }
 
-fn spawn_reader() -> Receiver<String> {
+fn spawn_reader() -> (Receiver<String>, Sender<String>) {
     let (tx, rx) = unbounded::<String>();
+    let tx_clone = tx.clone();
     thread::spawn(move || loop {
         let mut buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
-        tx.send(buffer).unwrap();
+        tx_clone.send(buffer).unwrap();
     });
 
-    rx
+    (rx, tx)
 }
