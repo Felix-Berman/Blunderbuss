@@ -75,7 +75,7 @@ impl Bitboard {
     pub const G_FILE: Bitboard = Bitboard(0x4040404040404040);
     pub const H_FILE: Bitboard = Bitboard(0x8080808080808080);
 
-    pub fn from(sq: Square) -> Self {
+    pub const fn from(sq: Square) -> Self {
         Bitboard(1 << sq as u64)
     }
 

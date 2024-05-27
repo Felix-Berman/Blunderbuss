@@ -2,9 +2,51 @@ use std::fmt::Display;
 
 use num::signum;
 
-use crate::{bitboard::{Bitboard, Square}, position::{CastlingFlags, Colour::{self, *}, Piece, Position}};
+use crate::{bitboard::{Bitboard, Square}, position::{CastlingFlags, Colour::{self, *}, Piece, Position}, search::{mvv_lva, SearchInfo}};
 use Piece::*;
 use Square::*;
+
+const MAX_MOVES: usize = 256;
+const KING_MOVES: [u64; 64] = build_king_tbl();
+const KNIGHT_MOVES: [u64; 64] = build_knight_tbl();
+
+const fn build_king_tbl() -> [u64; 64] {
+    let mut moves  = [0; 64];
+    let mut sq = 0;
+    while sq < 64 {
+        let king = 1 << sq;
+        moves[sq] = king << 7 & !Bitboard::H_FILE.0
+            | king << 8
+            | king << 9 & !Bitboard::A_FILE.0
+            | king << 1 & !Bitboard::A_FILE.0
+            | king >> 7 & !Bitboard::A_FILE.0
+            | king >> 8
+            | king >> 9 & !Bitboard::H_FILE.0
+            | king >> 1 & !Bitboard::H_FILE.0;
+        sq += 1;
+    }
+
+    moves
+}
+
+const fn build_knight_tbl() -> [u64; 64] {
+    let mut moves = [0; 64];
+    let mut sq = 0;
+    while sq < 64 {
+        let knight = 1 << sq;
+        moves[sq] = knight << 6 & !Bitboard::H_FILE.0 & !Bitboard::G_FILE.0
+            | knight << 15 & !Bitboard::H_FILE.0
+            | knight << 17 & !Bitboard::A_FILE.0
+            | knight << 10 & !Bitboard::A_FILE.0 & !Bitboard::B_FILE.0
+            | knight >> 6 & !Bitboard::A_FILE.0 & !Bitboard::B_FILE.0
+            | knight >> 15 & !Bitboard::A_FILE.0
+            | knight >> 17 & !Bitboard::H_FILE.0
+            | knight >> 10 & !Bitboard::H_FILE.0 & !Bitboard::G_FILE.0;
+
+        sq += 1;
+    }
+    moves
+}
 
 pub fn king_attacks(sq: Square) -> Bitboard {
     let king = Bitboard::from(sq);
@@ -112,7 +154,7 @@ pub fn bishop_attacks(from_sq: Square, blockers: Bitboard) -> Bitboard {
 
     attacks
 }
-    
+
 
 pub fn _rook_attacks_mask(from_sq: Square) -> Bitboard {
     let mut attacks = Bitboard(0);
@@ -165,7 +207,10 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn _new() -> Move {
+
+    pub const NULL: Move = Move::new();
+
+    pub const fn new() -> Move {
         Move {
             from: A1,
             to: A1,
@@ -199,10 +244,71 @@ pub enum MoveKind {
     PromotionCapture(Piece, Piece),
 }
 
+pub struct MoveList {
+    pub moves: [Move; MAX_MOVES],
+    pub length: usize,
+    pub curr: usize,
+}
+
+impl MoveList {
+    pub fn new() -> MoveList {
+        MoveList {
+            moves: [Move::NULL; MAX_MOVES],
+            length: 0,
+            curr: 0,
+        }
+    }
+
+    pub fn push(&mut self, mv: Move) {
+        self.moves[self.length] = mv;
+        self.length += 1;
+    }
+
+    pub fn pop(&mut self) -> Move {
+        self.length -= 1;
+        self.moves[self.length]
+    }
+
+    pub fn score(&mut self, ply: usize, info: &SearchInfo) {
+        for i in 0..self.length {
+            let mv = &mut self.moves[i];
+            if info.triangular_pv[ply].is_some_and(|pv_mv| *mv == pv_mv) {
+                mv.sort_score += 100;
+            }
+            mv.sort_score += mvv_lva(mv);
+        }
+    }
+}
+
+impl Iterator for MoveList {
+    type Item = Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.curr >= self.length {
+            return None
+        }
+
+        let mut next_best = self.moves[self.curr];
+
+        for i in (self.curr + 1)..self.length {
+            if  self.moves[i].sort_score > next_best.sort_score {
+                next_best = self.moves[i];
+                self.moves[i] = self.moves[self.curr];
+                self.moves[self.curr] = next_best;
+            }
+        }
+
+        self.curr += 1;
+        Some(next_best)
+    }
+}
+
 impl Position {
-    pub fn gen_moves(&self, moves: &mut Vec<Move>) {
-        self.gen_captures(moves);
-        self.gen_quiet_moves(moves);
+    pub fn gen_moves(&self) -> MoveList {
+        let mut moves = MoveList::new();
+        self.gen_captures(&mut moves);
+        self.gen_quiet_moves(&mut moves);
+        moves
     }
 
     pub fn is_sq_attacked_by(&self, sq: Square, side: Colour) -> bool {
@@ -218,7 +324,7 @@ impl Position {
         self.is_sq_attacked_by(king, !side)
     }
 
-    pub fn gen_quiet_moves(&self, moves: &mut Vec<Move>) {
+    pub fn gen_quiet_moves(&self, moves: &mut MoveList) {
         let occ = self.occupied();
         self.gen_castling(moves);
 
@@ -266,8 +372,8 @@ impl Position {
             }
         }
     }
-    
-    pub fn gen_captures(&self, moves: &mut Vec<Move>) {
+
+    pub fn gen_captures(&self, moves: &mut MoveList) {
         let occ = self.occupied();
         let opponent = self.occupancy[!self.turn];
         self.gen_en_passant(moves);
@@ -301,7 +407,7 @@ impl Position {
                             continue
                         }
                     }
-    
+
 
                     moves.push(Move {
                         from,
@@ -315,7 +421,7 @@ impl Position {
         }
     }
 
-    pub fn gen_double_pawn_pushes(&self, moves: &mut Vec<Move>, c: Colour, from: Square) {
+    pub fn gen_double_pawn_pushes(&self, moves: &mut MoveList, c: Colour, from: Square) {
         match (c, from as i8) {
             (White, 48..=55) => {
                 let mut path = Bitboard::from(from);
@@ -356,7 +462,7 @@ impl Position {
     }
 
 
-    pub fn gen_en_passant(&self, moves: &mut Vec<Move>) {
+    pub fn gen_en_passant(&self, moves: &mut MoveList) {
         if let Some(to) = self.en_passant {
             let from_bb = pawn_attacks(to, !self.turn) & self.pieces[Pawn(self.turn)];
             for from in from_bb {
@@ -371,7 +477,7 @@ impl Position {
         }
     }
 
-    pub fn gen_castling(&self, moves: &mut Vec<Move>) {
+    pub fn gen_castling(&self, moves: &mut MoveList) {
         if self.castling.is_empty() { return }
 
         let occ = self.occupied();

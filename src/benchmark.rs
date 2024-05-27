@@ -2,15 +2,16 @@ use std::{env, fs, time::Instant};
 
 use crate::{engine::Engine, interface::SearchControl, position::Position, search::SearchCommand};
 
-const NUM_TESTS: usize = 50;
-const TEST_TIME: u32 = 1000;
+const NUM_TESTS: usize = 20;
+const _TEST_TIME: u32 = 1000;
+const TEST_DEPTH: u8 = 4;
 
 impl Engine {
     pub fn benchmark(&mut self) {
         let mut path = env::current_dir().unwrap();
         path.push("arasan2023.epd");
         let contents = fs::read_to_string(path).unwrap();
-        let tests: Vec<&str> = contents.split('\n').collect();
+        let tests: Vec<&str> = contents.split('\n').take(NUM_TESTS).collect();
         
         let start_time = Instant::now();
         self.nodes = 0;
@@ -19,11 +20,11 @@ impl Engine {
             let bm_offset = test[0].find("bm").unwrap_or(test[0].len());
             let fen: String = test[0].drain(..bm_offset).collect();
 
-            println!("\nTest: {}/{} \"{}\"", i, NUM_TESTS, fen);
+            println!("\nTest: {}/{} \"{}\"", i+1, NUM_TESTS, fen);
     
             self.position = Position::from_fen(&fen);
             let mut control = SearchControl::new();
-            control.movetime = TEST_TIME;
+            control.depth = TEST_DEPTH;
             
             self.search(control);
             

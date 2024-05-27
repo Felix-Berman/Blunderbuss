@@ -1,18 +1,5 @@
-mod bitboard;
-mod movegen;
-mod position;
-mod fen;
-mod make_move;
-mod perft;
-mod interface;
-mod eval;
-mod search;
-mod engine;
-mod zobrist;
-mod benchmark;
-
-use engine::Engine;
-use zobrist::ZobristCodes;
+use blunderbuss::engine::Engine;
+use blunderbuss::zobrist::ZobristCodes;
 
 fn main() {
     let args: String = std::env::args().collect();

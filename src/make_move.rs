@@ -134,11 +134,10 @@ impl Position {
     }
 
     pub fn find_algebraic_move(&self, mv_str: &str) -> Option<Move> {
-        let mut moves = Vec::new();
-        self.gen_moves(&mut moves);
+        let mut moves = self.gen_moves();
         
-        moves.iter().find(|&mv| {
+        moves.find(|&mv| {
             mv.to_string() == mv_str
-        }).copied()
+        })
     }
 }
