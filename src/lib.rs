@@ -10,3 +10,4 @@ pub mod search;
 pub mod engine;
 pub mod zobrist;
 pub mod benchmark;
+pub mod magic;

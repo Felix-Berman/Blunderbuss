@@ -91,6 +91,10 @@ impl Bitboard {
         (self.0 & (1 << sq as u64)) != 0
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
     pub fn get_lsb(&self) -> Option<Square> {
         Square::from_u32(self.0.trailing_zeros())
     }

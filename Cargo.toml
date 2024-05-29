@@ -26,6 +26,9 @@ test-case = "3.3.1"
 [dev-dependencies]
 divan = "0.1.14"
 
+[profile.dev]
+overflow-checks = false
+
 [[bench]]
 name = "bench_move"
 harness = false

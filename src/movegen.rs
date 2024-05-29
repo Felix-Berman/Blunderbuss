@@ -1,8 +1,6 @@
 use std::fmt::Display;
 
-use num::signum;
-
-use crate::{bitboard::{Bitboard, Square}, position::{CastlingFlags, Colour::{self, *}, Piece, Position}, search::{mvv_lva, SearchInfo}};
+use crate::{bitboard::{Bitboard, Square}, magic::{BISHOP_BITS, MAGICS, ROOK_BITS}, position::{CastlingFlags, Colour::{self, *}, Piece, Position}, search::{mvv_lva, SearchInfo}};
 use Piece::*;
 use Square::*;
 
@@ -109,92 +107,20 @@ pub fn pawn_pushes(sq: Square, side: Colour) -> Bitboard {
     pushes
 }
 
-pub fn _bishop_attacks_mask(from_sq: Square) -> Bitboard {
-    let mut attacks = Bitboard(0);
+fn rook_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
+    occ &= MAGICS.rook_magics[sq as usize].mask;
+    occ.0 *= MAGICS.rook_magics[sq as usize].magic;
+    occ >>= 64 - ROOK_BITS[sq];
 
-    let directions = [9, 7, -9, -7];
-    for direction in directions {
-        let mut to_sq = from_sq.add(direction);
-        let mut prev_rank = from_sq.rank();
-        while let Some(sq) = to_sq {
-            // break if rank hasn't changed by 1 to handle edge wraps
-            if sq.rank() - prev_rank != signum(direction) {
-                break;
-            }
-            attacks.set(sq);
-            to_sq = sq.add(direction);
-            prev_rank = sq.rank();
-        }
-    }
-
-    attacks
+    MAGICS.rook_attacks[sq as usize][occ.0 as usize]
 }
 
-pub fn bishop_attacks(from_sq: Square, blockers: Bitboard) -> Bitboard {
-    let mut attacks = Bitboard(0);
+fn bishop_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
+    occ &= MAGICS.bishop_magics[sq as usize].mask;
+    occ.0 *= MAGICS.bishop_magics[sq as usize].magic;
+    occ >>= 64 - BISHOP_BITS[sq];
 
-    let directions = [9, 7, -9, -7];
-    for direction in directions {
-        let mut to_sq = from_sq.add(direction);
-        let mut prev_rank = from_sq.rank();
-        while let Some(sq) = to_sq {
-            // break if rank hasn't changed by 1 to handle edge wraps
-            if sq.rank() - prev_rank != signum(direction) {
-                break;
-            }
-            attacks.set(sq);
-            to_sq = sq.add(direction);
-            prev_rank = sq.rank();
-
-            if blockers.is_set(sq) {
-                break;
-            }
-        }
-    }
-
-    attacks
-}
-
-
-pub fn _rook_attacks_mask(from_sq: Square) -> Bitboard {
-    let mut attacks = Bitboard(0);
-
-    let directions = [1, -1, 8, -8];
-    for direction in directions {
-        let mut to_sq = from_sq.add(direction);
-        while let Some(sq) = to_sq {
-            // break if not same rank and file to handle edge wraps
-            if from_sq.rank() != sq.rank() && from_sq.file() != sq.file() {
-                break;
-            }
-            attacks.set(sq);
-            to_sq = sq.add(direction);
-        }
-    }
-
-    attacks
-}
-
-pub fn rook_attacks(from_sq: Square, blockers: Bitboard) -> Bitboard {
-    let mut attacks = Bitboard(0);
-
-    let directions = [1, -1, 8, -8];
-    for direction in directions {
-        let mut to_sq = from_sq.add(direction);
-        while let Some(sq) = to_sq {
-            // break if not same rank and file to handle edge wraps
-            if from_sq.rank() != sq.rank() && from_sq.file() != sq.file() {
-                break;
-            }
-            attacks.set(sq);
-            to_sq = sq.add(direction);
-            if blockers.is_set(sq) {
-                break;
-            }
-        }
-    }
-
-    attacks
+    MAGICS.bishop_attacks[sq as usize][occ.0 as usize]
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
