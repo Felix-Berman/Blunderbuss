@@ -1,17 +1,25 @@
-use std::{error::Error, io, thread::{self, JoinHandle}, time::Instant};
-
-use crossbeam_channel::{unbounded, Sender, Receiver};
-
-use crate::{
-    eval::evaluate, 
-    fen::STARTING_FEN, 
-    interface::{id, parse_command, write_currmove_info, write_full_info, Command::*, SearchControl}, 
-    perft::perft_divide, 
-    position::{Colour, Position}, 
-    search::{iterative_deepening, SearchCommand, SendInfo} 
+use std::{
+    error::Error,
+    io,
+    thread::{self, JoinHandle},
+    time::Instant,
 };
 
-pub const MAX_GAME_PLY: usize = 256; 
+use crossbeam_channel::{unbounded, Receiver, Sender};
+
+use crate::{
+    eval::evaluate,
+    fen::STARTING_FEN,
+    interface::{
+        id, parse_command, write_currmove_info, write_full_info, Command::*, SearchControl,
+    },
+    movegen::{Move, MAX_MOVES},
+    perft::perft_divide,
+    position::{Colour, Position},
+    search::{iterative_deepening, CurrMoveInfo, SearchCommand, SendInfo},
+};
+
+pub const MAX_GAME_PLY: usize = 256;
 pub const CURRMOVE_WAIT_TIME: u32 = 3000;
 
 pub struct Engine {
@@ -26,6 +34,7 @@ pub struct Engine {
     pub info_rx: Receiver<SendInfo>,
     pub history: [u64; MAX_GAME_PLY],
     pub nodes: u32,
+    pub currmove_buffer: Vec<CurrMoveInfo>,
 }
 
 impl Engine {
@@ -45,16 +54,16 @@ impl Engine {
             info_rx,
             history: [0; MAX_GAME_PLY],
             nodes: 0,
+            currmove_buffer: Vec::new(),
         }
     }
 
     pub fn run(&mut self, cmd_args: String) -> Result<(), Box<dyn Error>> {
-
         let (stdin_rx, stdin_tx) = spawn_reader();
         stdin_tx.send(cmd_args)?;
-        
+
         'running: loop {
-            if let Ok(input) = stdin_rx.try_recv() {     
+            if let Ok(input) = stdin_rx.try_recv() {
                 if let Some(cmd) = parse_command(&input) {
                     match cmd {
                         Uci => id(),
@@ -65,7 +74,7 @@ impl Engine {
                         Position(position, history) => {
                             self.position = position;
                             self.history = *history;
-                        },
+                        }
                         Go(control) => self.search(control),
                         Stop => self.search_tx.send(SearchCommand::Stop)?,
                         PonderHit => todo!("no pondering configured yet"),
@@ -77,12 +86,12 @@ impl Engine {
                             if let Some(mv) = self.position.find_algebraic_move(&mv_str) {
                                 self.position.make_move(mv);
                             }
-                        },
+                        }
                         Benchmark => self.benchmark(),
                     }
                 }
             }
-            
+
             self.receive_info();
 
             if self.max_time != 0 && self.search_time.elapsed().as_millis() as u32 > self.max_time {
@@ -94,10 +103,9 @@ impl Engine {
         Ok(())
     }
 
-
     pub fn search(&mut self, control: SearchControl) {
         if self.search_handle.is_some() {
-            return
+            return;
         }
 
         let position = self.position;
@@ -106,9 +114,9 @@ impl Engine {
 
         self.search_time = Instant::now();
         let history = self.history;
-        let handle = thread::spawn(
-            move || iterative_deepening(position, control.depth, control.nodes, history, tx, rx)
-        );
+        let handle = thread::spawn(move || {
+            iterative_deepening(position, control.depth, control.nodes, history, tx, rx)
+        });
 
         self.search_handle = Some(handle);
 
@@ -117,14 +125,14 @@ impl Engine {
 
     pub fn set_search_limit(&mut self, control: SearchControl) {
         if control.infinite {
-            return
+            return;
         }
 
         self.max_time = match self.position.turn {
             Colour::White => calculate_allowed_time(control.wtime, control.winc, control.movestogo),
             Colour::Black => calculate_allowed_time(control.btime, control.binc, control.movestogo),
         };
-        
+
         if control.movetime != 0 {
             self.max_time = control.movetime;
         }
@@ -134,12 +142,20 @@ impl Engine {
         for info in self.info_rx.try_iter() {
             match info {
                 SendInfo::Full(info) => {
-                    self.nodes = info.nodes;
+                    self.nodes += info.nodes;
                     write_full_info(info);
-                },
-                SendInfo::CurrMove(info) => if self.search_time.elapsed().as_millis() > CURRMOVE_WAIT_TIME.into() {
-                    write_currmove_info(info)
-                },
+                    self.currmove_buffer.drain(..);
+                }
+                SendInfo::CurrMove(info) => {
+                    if self.search_time.elapsed().as_millis() > CURRMOVE_WAIT_TIME.into() {
+                        for info in self.currmove_buffer.drain(..) {
+                            write_currmove_info(info);
+                        }
+                        write_currmove_info(info)
+                    } else {
+                        self.currmove_buffer.push(info);
+                    }
+                }
                 SendInfo::Done(mv) => {
                     if let Some(mv) = mv {
                         println!("bestmove {}", mv);
@@ -152,7 +168,6 @@ impl Engine {
             }
         }
     }
-
 }
 
 fn calculate_allowed_time(time: u32, _inc: u32, mut movestogo: u8) -> u32 {
@@ -160,7 +175,7 @@ fn calculate_allowed_time(time: u32, _inc: u32, mut movestogo: u8) -> u32 {
         movestogo = 40;
     }
 
-    time/movestogo as u32 - 500
+    time / movestogo as u32 - 500
 }
 
 fn spawn_reader() -> (Receiver<String>, Sender<String>) {
@@ -174,3 +189,4 @@ fn spawn_reader() -> (Receiver<String>, Sender<String>) {
 
     (rx, tx)
 }
+
