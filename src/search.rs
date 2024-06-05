@@ -1,7 +1,9 @@
-use std::time::Instant;
+use std::{
+    cmp::{max, min},
+    time::Instant,
+};
 
 use crossbeam_channel::{Receiver, SendError, Sender};
-use itertools::Itertools;
 
 use crate::{
     engine::MAX_GAME_PLY,
@@ -13,7 +15,8 @@ use crate::{
 pub const MAX_DEPTH: usize = 64;
 const PV_SIZE: usize = MAX_DEPTH * (MAX_DEPTH + 1) / 2;
 const STALEMATE: i32 = 0;
-pub const CHECKMATE: i32 = i32::MAX;
+pub const CHECKMATE: i32 = 1_000_000;
+const UNRAVEL: i32 = CHECKMATE + 1;
 const HALFMOVE_DRAW_COUNT: u8 = 100;
 
 type SendResult = Result<(), SendError<SendInfo>>;
@@ -134,6 +137,11 @@ pub fn iterative_deepening(
     tx: Sender<SendInfo>,
     rx: Receiver<SearchCommand>,
 ) {
+    // clear receiver in case stop sent from previous search
+    for _ in rx.try_iter() {
+        print!("");
+    }
+
     let mut info = SearchInfo::new(stop_nodes, history, tx, rx);
 
     for depth in 1..=stop_depth {
@@ -142,17 +150,15 @@ pub fn iterative_deepening(
         info.nodes = 0;
         info.score = negamax(&mut pos, -i32::MAX, i32::MAX, depth, 0, 0, &mut info);
 
-        info.send_full().unwrap();
-
-        if let Ok(SearchCommand::Stop) = info.rx.try_recv() {
-            break;
-        }
-
-        if info.nodes > info.stop_nodes || info.stop {
-            break;
+        if info.score < UNRAVEL {
+            info.send_full().unwrap();
         }
 
         if CHECKMATE - info.score.abs() <= depth as i32 {
+            break;
+        }
+
+        if info.stop || info.nodes >= info.stop_nodes {
             break;
         }
     }
@@ -169,11 +175,16 @@ fn negamax(
     pv_idx: usize,
     info: &mut SearchInfo,
 ) -> i32 {
+    if info.depth > 1 && info.nodes % 10_000 == 0 && info.rx.try_recv().is_ok() {
+        info.stop = true;
+        return UNRAVEL;
+    }
+
     if ply as u8 > info.seldepth {
         info.seldepth = ply as u8;
     }
 
-    if pos.halfmove >= HALFMOVE_DRAW_COUNT || detect_repetition(pos, info.history) {
+    if pos.halfmove >= HALFMOVE_DRAW_COUNT || detect_repetition(pos, info.history, ply < 2) {
         return STALEMATE;
     }
 
@@ -193,7 +204,7 @@ fn negamax(
             *pos = prev;
             continue;
         }
-        
+
         info.current_branch[ply] = Some(mv);
         info.history[prev.ply as usize] = prev.hash;
         legal_moves += 1;
@@ -203,6 +214,11 @@ fn negamax(
         }
 
         let score = -negamax(pos, -beta, -alpha, depth - 1, ply + 1, next_pv_idx, info);
+
+        if info.nodes > info.stop_nodes || info.stop {
+            return min(alpha.abs(), UNRAVEL);
+        }
+
         info.nodes += 1;
 
         if score >= beta {
@@ -213,11 +229,6 @@ fn negamax(
             alpha = score;
             info.triangular_pv[pv_idx] = Some(mv);
             info.hoist_pv(pv_idx + 1, next_pv_idx, MAX_DEPTH - ply - 1);
-        }
-
-        if info.rx.try_recv().is_ok() || info.nodes > info.stop_nodes || info.stop {
-            info.stop = true;
-            return alpha;
         }
 
         *pos = prev;
@@ -241,6 +252,11 @@ fn quiescence_search(
     ply: usize,
     info: &mut SearchInfo,
 ) -> i32 {
+    if info.depth > 1 && info.nodes % 10_000 == 0 && info.rx.try_recv().is_ok() {
+        info.stop = true;
+        return UNRAVEL;
+    }
+
     if ply as u8 > info.seldepth {
         info.seldepth = ply as u8;
     }
@@ -277,6 +293,10 @@ fn quiescence_search(
         let score = -quiescence_search(pos, -beta, -alpha, ply + 1, info);
         *pos = prev;
 
+        if info.nodes > info.stop_nodes || info.stop {
+            return min(alpha.abs(), UNRAVEL);
+        }
+
         if score >= beta {
             return beta;
         }
@@ -289,13 +309,18 @@ fn quiescence_search(
     alpha
 }
 
-fn detect_repetition(pos: &Position, history: [u64; MAX_GAME_PLY]) -> bool {
-    if pos.ply - pos.last_irreversible < 4 {
+fn detect_repetition(pos: &Position, history: [u64; MAX_GAME_PLY], is_root: bool) -> bool {
+    if pos.ply - pos.last_irreversible_ply < 4 {
         return false;
     }
 
-    for ply in (pos.last_irreversible..pos.ply).step_by(2) {
+    let mut count = 0;
+    for ply in (pos.last_irreversible_ply..=pos.ply).rev().step_by(2) {
         if history[ply as usize] == pos.hash {
+            count += 1;
+        }
+
+        if count >= 2 || (count == 1 && !is_root) {
             return true;
         }
     }

@@ -13,7 +13,6 @@ use crate::{
     interface::{
         id, parse_command, write_currmove_info, write_full_info, Command::*, SearchControl,
     },
-    movegen::{Move, MAX_MOVES},
     perft::perft_divide,
     position::{Colour, Position},
     search::{iterative_deepening, CurrMoveInfo, SearchCommand, SendInfo},
@@ -175,7 +174,7 @@ fn calculate_allowed_time(time: u32, _inc: u32, mut movestogo: u8) -> u32 {
         movestogo = 40;
     }
 
-    time / movestogo as u32 - 500
+    time / (movestogo + 2) as u32
 }
 
 fn spawn_reader() -> (Receiver<String>, Sender<String>) {
@@ -189,4 +188,3 @@ fn spawn_reader() -> (Receiver<String>, Sender<String>) {
 
     (rx, tx)
 }
-

@@ -158,7 +158,7 @@ impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let promotion = if let MoveKind::Promotion(p) | MoveKind::PromotionCapture(p, _) = self.kind
         {
-            p.to_string()
+            p.to_string().to_lowercase()
         } else {
             "".to_string()
         };
@@ -178,6 +178,7 @@ pub enum MoveKind {
     PromotionCapture(Piece, Piece),
 }
 
+#[derive(Clone, Copy)]
 pub struct MoveList {
     pub moves: [Move; MAX_MOVES],
     pub sort_scores: [u8; MAX_MOVES],

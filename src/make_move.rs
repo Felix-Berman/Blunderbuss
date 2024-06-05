@@ -33,7 +33,7 @@ impl Position {
             Capture(p) => {
                 self.pieces[p] ^= to_bb;
                 self.halfmove = 0;
-                self.last_irreversible = self.ply;
+                self.last_irreversible_ply = self.ply;
                 self.occupancy[!self.turn] ^= to_bb;
 
                 self.hash ^= ZOBRIST_CODES.piece(p, mv.to);
@@ -93,7 +93,7 @@ impl Position {
                 for sq in from_to {
                     self.hash ^= ZOBRIST_CODES.piece(Rook(c), sq);
                 }
-                self.last_irreversible = self.ply;
+                self.last_irreversible_ply = self.ply;
             },
         }
         
@@ -105,24 +105,24 @@ impl Position {
         }
         if from_to_bb.intersects(Bitboard::from(H1)) && self.castling.contains(CastlingFlags::WK) {
             self.castling.remove(CastlingFlags::WK);
-            self.last_irreversible = self.ply;
+            self.last_irreversible_ply = self.ply;
         }
         if from_to_bb.intersects(Bitboard::from(A1)) && self.castling.contains(CastlingFlags::WQ) {
             self.castling.remove(CastlingFlags::WQ);
-            self.last_irreversible = self.ply;
+            self.last_irreversible_ply = self.ply;
         }
         if from_to_bb.intersects(Bitboard::from(H8)) && self.castling.contains(CastlingFlags::BK) {
             self.castling.remove(CastlingFlags::BK);
-            self.last_irreversible = self.ply;
+            self.last_irreversible_ply = self.ply;
         }
         if from_to_bb.intersects(Bitboard::from(A8)) && self.castling.contains(CastlingFlags::BQ) {
             self.castling.remove(CastlingFlags::BQ);
-            self.last_irreversible = self.ply;
+            self.last_irreversible_ply = self.ply;
         }
         
         if let Pawn(_) = mv.piece {
             self.halfmove = 0;
-            self.last_irreversible = self.ply;
+            self.last_irreversible_ply = self.ply;
         }
         
         self.turn = !self.turn;
