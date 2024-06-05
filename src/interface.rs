@@ -27,6 +27,7 @@ pub enum Command {
     Perft(u8),
     Evaluate,
     Move(String),
+    Benchmark,
 }
 
 #[derive(Default, Debug)]
@@ -83,6 +84,7 @@ pub fn parse_command(line: &str) -> Option<Command> {
         "perft" => Command::Perft(tokens.next()?.parse().ok()?),
         "eval" => Command::Evaluate,
         "move" => Command::Move(tokens.next()?.to_string()),
+        "bench" => Command::Benchmark,
         _ => return None
     };
 
@@ -151,7 +153,7 @@ pub fn write_full_info(info: FullInfo) {
     } else {
         1
     };
-    let nps = info.nodes * 1000 / time;
+    let nps = info.nodes / time * 1000;
 
     let distance_from_mate = CHECKMATE - info.score.abs();
     let score = if distance_from_mate <= info.depth as i32 {

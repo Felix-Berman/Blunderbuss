@@ -1,31 +1,26 @@
 use rand::Rng;
 use lazy_static::lazy_static;
-use crate::{bitboard::Square, position::{CastlingFlags, Colour::*, Piece::{self, *}, Position}};
+use crate::{bitboard::Square, position::{CastlingFlags, Colour::*, Piece, Position}};
 
 lazy_static! {
     pub static ref ZOBRIST_CODES: ZobristCodes = ZobristCodes::init();
 }
 
-const PAWN_OFFSET: usize = 64*10; // 10 pieces with 64 squares
-const CASTLING_OFFSET: usize = PAWN_OFFSET + 48*2; // 2 pawns with 48 squares (excluding back ranks)
+const CASTLING_OFFSET: usize = 64*12; // 12 pieces with 64 squares
 const EN_PASSANT_OFFSET: usize = CASTLING_OFFSET + 16; // 2^4 castling arrangements
 const TURN_OFFSET: usize = EN_PASSANT_OFFSET + 8; // 8 possible en-passent files
 
-pub struct ZobristCodes([u64; 761]);
+pub struct ZobristCodes([u64; 793]);
 
 impl ZobristCodes {
     pub fn init() -> Self {
-        let mut codes = [0; 761];
+        let mut codes = [0; 793];
         rand::thread_rng().fill(&mut codes[..]);
         ZobristCodes(codes)
     }
 
     pub fn piece(&self, piece: Piece, sq: Square) -> u64 {
-        match piece {
-            Pawn(White) => self.0[PAWN_OFFSET + sq as usize - 8],
-            Pawn(Black) => self.0[PAWN_OFFSET + 48 + sq as usize - 8],
-            _ => self.0[usize::from(piece) * 64 + sq as usize],
-        }
+        self.0[usize::from(piece) * 64 + sq as usize]
     }
 
     pub fn castling(&self, castling: CastlingFlags) -> u64 {

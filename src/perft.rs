@@ -2,9 +2,8 @@ use crate::position::Position;
 
 pub fn perft_divide(pos: &mut Position, depth: u8) {
     let mut total_nodes = 0;
-    let mut moves = Vec::new();
 
-    pos.gen_moves(&mut moves);
+    let moves = pos.gen_moves();
 
     for mv in moves {
         let prev = pos.make_move(mv);
@@ -28,8 +27,7 @@ pub fn perft(pos: &mut Position, depth: u8) -> u64 {
 
     let mut nodes = 0;
 
-    let mut moves = Vec::new();
-    pos.gen_moves(&mut moves);
+    let moves = pos.gen_moves();
     for mv in moves {
         let prev = pos.make_move(mv);
         if pos.is_check(!pos.turn) {
