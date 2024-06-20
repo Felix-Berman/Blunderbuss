@@ -4,7 +4,7 @@ use crate::{engine::Engine, interface::SearchControl, position::Position, search
 
 const NUM_TESTS: usize = 50;
 const TEST_TIME: u32 = 1000;
-const TEST_DEPTH: u8 = 4;
+const TEST_DEPTH: u8 = 6;
 
 impl Engine {
     pub fn benchmark(&mut self) {
@@ -24,7 +24,8 @@ impl Engine {
 
             self.position = Position::from_fen(&fen);
             let mut control = SearchControl::new();
-            control.movetime = TEST_TIME;
+            // control.movetime = TEST_TIME;
+            control.depth = TEST_DEPTH;
 
             self.search(control);
 

@@ -10,7 +10,6 @@ use crate::{
     },
     search::{mvv_lva, SearchInfo},
 };
-use itertools::Itertools;
 use Piece::*;
 use Square::*;
 

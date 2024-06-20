@@ -6,10 +6,16 @@ use std::{
 use crossbeam_channel::{Receiver, SendError, Sender};
 
 use crate::{
+    bitboard::{Bitboard, Square},
     engine::MAX_GAME_PLY,
     eval::evaluate,
-    movegen::{Move, MoveKind, MoveList},
-    position::Position,
+    magic::{bishop_attacks, rook_attacks},
+    movegen::{knight_attacks, pawn_attacks, Move, MoveKind, MoveList},
+    position::{
+        Colour::*,
+        Piece::{self, *},
+        Position,
+    },
 };
 
 pub const MAX_DEPTH: usize = 64;
@@ -275,18 +281,27 @@ fn quiescence_search(
     captures.score(ply, info);
 
     for capture in captures {
-        let prev = pos.make_move(capture);
-        if pos.is_check(prev.turn) {
-            *pos = prev;
+        let target = match capture.kind {
+            MoveKind::Capture(target) | MoveKind::PromotionCapture(_, target) => target,
+            MoveKind::EnPassant => Pawn(!pos.turn),
+            _ => panic!(),
+        };
+
+        if static_exchange_evaluation(pos, capture.from, capture.to, capture.piece, target) < 0 {
             continue;
         }
 
         // delta pruning. Need to consider effect on endgame
         if let MoveKind::Capture(piece) | MoveKind::PromotionCapture(_, piece) = capture.kind {
             if standing_pat + piece.value() + 200 <= alpha {
-                *pos = prev;
                 continue;
             }
+        }
+
+        let prev = pos.make_move(capture);
+        if pos.is_check(prev.turn) {
+            *pos = prev;
+            continue;
         }
 
         info.nodes += 1;
@@ -307,6 +322,82 @@ fn quiescence_search(
     }
 
     alpha
+}
+
+fn static_exchange_evaluation(
+    position: &Position,
+    from: Square,
+    to: Square,
+    mut attacker: Piece,
+    target: Piece,
+) -> i32 {
+    let mut gain = [0; 32];
+    let mut depth = 0;
+    let mut side = position.turn;
+
+    let pawns = position.pieces[Pawn(White)] | position.pieces[Pawn(Black)];
+    let knights = position.pieces[Knight(White)] | position.pieces[Knight(Black)];
+    let bishops = position.pieces[Bishop(White)] | position.pieces[Bishop(Black)];
+    let rooks = position.pieces[Rook(White)] | position.pieces[Rook(Black)];
+    let queens = position.pieces[Queen(White)] | position.pieces[Queen(Black)];
+    let may_xray = pawns | bishops | rooks | queens;
+
+    let mut from_bb = Bitboard::from(from);
+    let mut occ = position.occupied();
+    let mut removed = Bitboard(0);
+
+    let mut attacks = pawn_attacks(to, White) & position.pieces[Pawn(White)]
+        | pawn_attacks(to, Black) & position.pieces[Pawn(Black)]
+        | knight_attacks(to) & knights
+        | bishop_attacks(to, occ) & (bishops | queens)
+        | rook_attacks(to, occ) & (rooks | queens);
+
+    gain[depth] = target.value();
+
+    'swap: loop {
+        depth += 1;
+        side = !side;
+
+        gain[depth] = attacker.value() - gain[depth - 1];
+
+        if max(-gain[depth - 1], gain[depth]) < 0 {
+            break;
+        }
+
+        attacks ^= from_bb;
+        occ ^= from_bb;
+        removed |= from_bb;
+
+        if may_xray.intersects(from_bb) {
+            if let Rook(_) | Queen(_) = attacker {
+                attacks |= rook_attacks(to, occ) & (rooks | queens) & !removed;
+            }
+
+            if let Pawn(_) | Bishop(_) | Queen(_) = attacker {
+                attacks |= bishop_attacks(to, occ) & (bishops | queens) & !removed;
+            }
+        }
+
+        for piece in Piece::iter_colour(side) {
+            let intersection = attacks & position.pieces[piece];
+            if !intersection.is_empty() {
+                from_bb = Bitboard::from(intersection.get_lsb().unwrap());
+                attacker = piece;
+                continue 'swap;
+            }
+        }
+
+        break;
+    }
+
+    while {
+        depth -= 1;
+        depth > 0
+    } {
+        gain[depth - 1] = -max(-gain[depth - 1], gain[depth]);
+    }
+
+    gain[0]
 }
 
 fn detect_repetition(pos: &Position, history: [u64; MAX_GAME_PLY], is_root: bool) -> bool {
@@ -347,3 +438,32 @@ const MVV_LVA_TBL: [[u8; 6]; 6] = [
     [30, 29, 28, 27, 26, 25], // queen victim
     [00, 00, 00, 00, 00, 00], // king victim
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{bitboard::Square, position::Position, search::static_exchange_evaluation};
+
+    #[test]
+    fn static_exchange_evaluation_test() {
+        let mut position = Position::from_fen("1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - -");
+        println!("{position}");
+        let from = Square::from_algebraic("e1").unwrap();
+        let to = Square::from_algebraic("e5").unwrap();
+        let eval = static_exchange_evaluation(&position, from, to, Rook(White), Pawn(Black));
+        assert_eq!(eval, 82);
+
+        position.read_fen("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - -");
+        println!("{position}");
+        let from = Square::from_algebraic("d3").unwrap();
+        let eval = static_exchange_evaluation(&position, from, to, Knight(White), Pawn(Black));
+        assert_eq!(eval, -255);
+
+        position.read_fen("r1bq1r1k/p1pn1pp1/1p2p3/6b1/3PB3/8/PPPQ1PPP/2KR3R w - - 0 2");
+        println!("{position}");
+        let from = Square::from_algebraic("d2").unwrap();
+        let to = Square::from_algebraic("g5").unwrap();
+        let eval = static_exchange_evaluation(&position, from, to, Queen(White), Bishop(Black));
+        assert_eq!(eval, -660);
+    }
+}
