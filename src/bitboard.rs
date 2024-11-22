@@ -10,9 +10,7 @@ pub struct Square(usize);
 pub struct Bitboard(u64);
 
 impl Bitboard {
-    fn new() -> Bitboard {
-        Bitboard(0)
-    }
+    pub const EMPTY: Bitboard = Bitboard(0);
 
     pub fn bitscan(self) -> Square {
         Square(self.0.trailing_zeros() as usize)
