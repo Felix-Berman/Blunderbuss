@@ -1,7 +1,4 @@
-use crate::{
-    bitboard::{Bitboard, Square},
-    piece::Colour,
-};
+use crate::{bitboard::Bitboard, piece::Colour, square::Square};
 
 pub struct Position {
     pieces: [Bitboard; 12],
@@ -26,7 +23,7 @@ impl Position {
         }
     }
 
-    pub fn ep_sq(self) -> Square {
+    pub fn ep_sq(self) -> Option<Square> {
         self.ep_bb.bitscan()
     }
 }

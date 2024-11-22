@@ -1,5 +1,8 @@
+use num_enum::IntoPrimitive;
 use std::ops::{Index, IndexMut};
 
+#[derive(IntoPrimitive)]
+#[repr(u8)]
 pub enum Colour {
     White,
     Black,
@@ -12,12 +15,6 @@ pub enum Piece {
     Rook(Colour),
     Queen(Colour),
     King(Colour),
-}
-
-impl From<Colour> for usize {
-    fn from(value: Colour) -> Self {
-        value as usize
-    }
 }
 
 impl From<Piece> for usize {

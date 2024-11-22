@@ -3,8 +3,7 @@ use std::ops::{
     ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct Square(usize);
+use crate::square::Square;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Bitboard(u64);
@@ -12,8 +11,8 @@ pub struct Bitboard(u64);
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
 
-    pub fn bitscan(self) -> Square {
-        Square(self.0.trailing_zeros() as usize)
+    pub fn bitscan(self) -> Option<Square> {
+        Square::try_from(self.0.trailing_zeros() as u8).ok()
     }
 }
 
@@ -22,11 +21,8 @@ impl Iterator for Bitboard {
 
     fn next(&mut self) -> Option<Self::Item> {
         let sq = self.bitscan();
-        if sq.0 > 63 {
-            return None;
-        }
-        self.0 &= !(1 << sq.0);
-        Some(sq)
+        self.0 &= self.0 - 1;
+        sq
     }
 }
 
