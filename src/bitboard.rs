@@ -14,6 +14,10 @@ impl Bitboard {
     pub fn bitscan(self) -> Option<Square> {
         Square::try_from(self.0.trailing_zeros() as u8).ok()
     }
+
+    pub fn set_bit(&mut self, sq: Square) {
+        self.0 |= 1 << sq as usize;
+    }
 }
 
 impl Iterator for Bitboard {
