@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Index, IndexMut};
 
 use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 
@@ -16,23 +16,34 @@ pub enum Square {
     A1, B1, C1, D1, E1, F1, G1, H1,
 }
 
+impl Square {
+    pub fn rank(&self) -> u8 {
+        *self as u8 / 8
+    }
+
+    pub fn file(&self) -> u8 {
+        *self as u8 % 8
+    }
+}
+
 impl From<Square> for usize {
     fn from(value: Square) -> Self {
         value as usize
     }
 }
 
+// summation mod 64
 impl Add<u8> for Square {
-    type Output = Result<Self, TryFromPrimitiveError<Self>>;
+    type Output = Square;
 
     fn add(self, rhs: u8) -> Self::Output {
-        Square::try_from_primitive(self as u8 + rhs)
+        Square::try_from_primitive((self as u8 + rhs) % 64).unwrap()
     }
 }
 
 impl AddAssign<u8> for Square {
     fn add_assign(&mut self, rhs: u8) {
-        *self = (*self + rhs).unwrap();
+        *self = *self + rhs;
     }
 }
 
@@ -54,5 +65,19 @@ impl TryFrom<&str> for Square {
         let rank = b'8' - iter.next().ok_or("Missing file")? as u8;
 
         Square::try_from((rank, file)).map_err(|_| "Invalid rank or file".to_string())
+    }
+}
+
+impl<T> Index<Square> for [T; 64] {
+    type Output = T;
+
+    fn index(&self, index: Square) -> &Self::Output {
+        &self[usize::from(index)]
+    }
+}
+
+impl<T> IndexMut<Square> for [T; 64] {
+    fn index_mut(&mut self, index: Square) -> &mut Self::Output {
+        &mut self[usize::from(index)]
     }
 }

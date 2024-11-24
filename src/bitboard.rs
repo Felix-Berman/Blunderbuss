@@ -25,7 +25,7 @@ impl Iterator for Bitboard {
 
     fn next(&mut self) -> Option<Self::Item> {
         let sq = self.bitscan();
-        self.0 &= self.0 - 1;
+        *self &= *self - Bitboard(1);
         sq
     }
 }
@@ -40,7 +40,7 @@ impl BitAnd for Bitboard {
 
 impl BitAndAssign for Bitboard {
     fn bitand_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 & rhs.0);
+        *self = *self & rhs;
     }
 }
 
@@ -54,7 +54,7 @@ impl BitOr for Bitboard {
 
 impl BitOrAssign for Bitboard {
     fn bitor_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 | rhs.0)
+        *self = *self | rhs
     }
 }
 
@@ -68,7 +68,7 @@ impl BitXor for Bitboard {
 
 impl BitXorAssign for Bitboard {
     fn bitxor_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 ^ rhs.0);
+        *self = *self ^ rhs;
     }
 }
 
@@ -82,7 +82,7 @@ impl Shl for Bitboard {
 
 impl ShlAssign for Bitboard {
     fn shl_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 << rhs.0);
+        *self = *self << rhs;
     }
 }
 
@@ -96,7 +96,7 @@ impl Shr for Bitboard {
 
 impl ShrAssign for Bitboard {
     fn shr_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 >> rhs.0);
+        *self = *self >> rhs;
     }
 }
 
@@ -110,7 +110,7 @@ impl Add for Bitboard {
 
 impl AddAssign for Bitboard {
     fn add_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 + rhs.0);
+        *self = *self + rhs;
     }
 }
 
@@ -118,13 +118,13 @@ impl Sub for Bitboard {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
+        Self(self.0.wrapping_sub(rhs.0))
     }
 }
 
 impl SubAssign for Bitboard {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = Self(self.0 - rhs.0);
+        *self = *self - rhs;
     }
 }
 

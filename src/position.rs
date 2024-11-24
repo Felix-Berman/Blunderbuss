@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 use crate::{
     bitboard::Bitboard,
@@ -134,5 +137,38 @@ impl Position {
             .map_err(|_| "Invalid halfmove clock")?;
 
         Ok(())
+    }
+
+    pub fn gen_mailbox(&self) -> Result<[Option<Piece>; 64], String> {
+        let mut board: [Option<Piece>; 64] = [None; 64];
+        for (piece, piece_bb) in self.pieces.iter().enumerate() {
+            for sq in *piece_bb {
+                board[sq] = Some(Piece::try_from(piece)?);
+            }
+        }
+
+        Ok(board)
+    }
+
+    pub fn draw_board(&self) -> Result<String, String> {
+        let divider = "\n  +---+---+---+---+---+---+---+---+\n";
+        let board = self.gen_mailbox()?;
+
+        let mut board_str = String::new();
+        for (sq, &occupant) in board.iter().enumerate() {
+            if sq % 8 == 0 {
+                board_str.push_str(divider);
+                board_str.push_str(&format!("{} |", 8 - sq / 8));
+            }
+            if let Some(piece) = occupant {
+                board_str.push_str(&format!(" {piece} |"));
+            } else {
+                board_str.push_str("   |")
+            }
+        }
+        board_str.push_str(divider);
+        board_str.push_str("    A   B   C   D   E   F   G   H\n");
+
+        Ok(board_str)
     }
 }
