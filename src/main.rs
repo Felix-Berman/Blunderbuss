@@ -1,6 +1,7 @@
 use position::Position;
 
 mod bitboard;
+mod movegen;
 mod piece;
 mod position;
 mod square;

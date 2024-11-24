@@ -10,6 +10,14 @@ pub struct Bitboard(u64);
 
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
+    pub const A_FILE: Bitboard = Bitboard(0x101010101010101);
+    pub const B_FILE: Bitboard = Bitboard(0x202020202020202);
+    pub const C_FILE: Bitboard = Bitboard(0x404040404040404);
+    pub const D_FILE: Bitboard = Bitboard(0x808080808080808);
+    pub const E_FILE: Bitboard = Bitboard(0x1010101010101010);
+    pub const F_FILE: Bitboard = Bitboard(0x2020202020202020);
+    pub const G_FILE: Bitboard = Bitboard(0x4040404040404040);
+    pub const H_FILE: Bitboard = Bitboard(0x8080808080808080);
 
     pub fn bitscan(self) -> Option<Square> {
         Square::try_from(self.0.trailing_zeros() as u8).ok()
@@ -25,8 +33,14 @@ impl Iterator for Bitboard {
 
     fn next(&mut self) -> Option<Self::Item> {
         let sq = self.bitscan();
-        *self &= *self - Bitboard(1);
+        *self &= *self - 1;
         sq
+    }
+}
+
+impl From<Square> for Bitboard {
+    fn from(value: Square) -> Self {
+        Bitboard(1 << value as usize)
     }
 }
 
@@ -80,6 +94,14 @@ impl Shl for Bitboard {
     }
 }
 
+impl Shl<usize> for Bitboard {
+    type Output = Self;
+
+    fn shl(self, rhs: usize) -> Self::Output {
+        Self(self.0 << rhs)
+    }
+}
+
 impl ShlAssign for Bitboard {
     fn shl_assign(&mut self, rhs: Self) {
         *self = *self << rhs;
@@ -94,6 +116,14 @@ impl Shr for Bitboard {
     }
 }
 
+impl Shr<usize> for Bitboard {
+    type Output = Self;
+
+    fn shr(self, rhs: usize) -> Self::Output {
+        Self(self.0 >> rhs)
+    }
+}
+
 impl ShrAssign for Bitboard {
     fn shr_assign(&mut self, rhs: Self) {
         *self = *self >> rhs;
@@ -103,8 +133,16 @@ impl ShrAssign for Bitboard {
 impl Add for Bitboard {
     type Output = Self;
 
-    fn add(self, rhs: Self) -> Self {
+    fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
+    }
+}
+
+impl Add<u64> for Bitboard {
+    type Output = Self;
+
+    fn add(self, rhs: u64) -> Self::Output {
+        Self(self.0 + rhs)
     }
 }
 
@@ -119,6 +157,14 @@ impl Sub for Bitboard {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0.wrapping_sub(rhs.0))
+    }
+}
+
+impl Sub<u64> for Bitboard {
+    type Output = Self;
+
+    fn sub(self, rhs: u64) -> Self::Output {
+        Self(self.0.wrapping_sub(rhs))
     }
 }
 
