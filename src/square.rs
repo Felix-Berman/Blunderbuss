@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Index, IndexMut};
+use std::ops::{Add, AddAssign, Index, IndexMut, Sub};
 
 use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 
@@ -32,18 +32,34 @@ impl From<Square> for usize {
     }
 }
 
-// summation mod 64
 impl Add<u8> for Square {
-    type Output = Square;
+    type Output = Result<Square, TryFromPrimitiveError<Square>>;
 
     fn add(self, rhs: u8) -> Self::Output {
-        Square::try_from_primitive((self as u8 + rhs) % 64).unwrap()
+        Square::try_from_primitive(self as u8 + rhs)
     }
 }
 
+// summation mod 64 (wrapping)
 impl AddAssign<u8> for Square {
     fn add_assign(&mut self, rhs: u8) {
-        *self = *self + rhs;
+        *self = Square::try_from_primitive((*self as u8 + rhs) % 64).unwrap();
+    }
+}
+
+impl Add<i8> for Square {
+    type Output = Result<Square, TryFromPrimitiveError<Square>>;
+
+    fn add(self, rhs: i8) -> Self::Output {
+        Square::try_from_primitive((self as i8 + rhs) as u8)
+    }
+}
+
+impl Sub<u8> for Square {
+    type Output = Result<Square, TryFromPrimitiveError<Square>>;
+
+    fn sub(self, rhs: u8) -> Self::Output {
+        Square::try_from_primitive((self as u8).wrapping_sub(rhs))
     }
 }
 

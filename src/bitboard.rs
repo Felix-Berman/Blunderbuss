@@ -1,6 +1,9 @@
-use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl,
-    ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+use std::{
+    fmt::Display,
+    ops::{
+        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, Not,
+        Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
+    },
 };
 
 use crate::square::Square;
@@ -18,13 +21,49 @@ impl Bitboard {
     pub const F_FILE: Bitboard = Bitboard(0x2020202020202020);
     pub const G_FILE: Bitboard = Bitboard(0x4040404040404040);
     pub const H_FILE: Bitboard = Bitboard(0x8080808080808080);
+    pub const RANK_8: Bitboard = Bitboard(0xff);
+    pub const RANK_7: Bitboard = Bitboard(0xff << 8);
+    pub const RANK_6: Bitboard = Bitboard(0xff << 16);
+    pub const RANK_5: Bitboard = Bitboard(0xff << 24);
+    pub const RANK_4: Bitboard = Bitboard(0xff << 32);
+    pub const RANK_3: Bitboard = Bitboard(0xff << 40);
+    pub const RANK_2: Bitboard = Bitboard(0xff << 48);
+    pub const RANK_1: Bitboard = Bitboard(0xff << 56);
 
     pub fn bitscan(self) -> Option<Square> {
         Square::try_from(self.0.trailing_zeros() as u8).ok()
     }
 
+    pub fn count_bits(&self) -> u32 {
+        self.0.count_ones()
+    }
+
     pub fn set_bit(&mut self, sq: Square) {
         self.0 |= 1 << sq as usize;
+    }
+
+    pub fn is_set(&self, sq: Square) -> bool {
+        *self & Bitboard::from(sq) != Bitboard::EMPTY
+    }
+
+    pub fn is_empty(&self) -> bool {
+        *self == Bitboard::EMPTY
+    }
+
+    pub fn draw(&self) -> String {
+        let mut bb = String::new();
+        for sq in 0..64 {
+            if sq % 8 == 0 {
+                bb.push('\n');
+            }
+            if self.0 & 1 << sq == 0 {
+                bb.push('0');
+            } else {
+                bb.push('1');
+            }
+        }
+
+        bb
     }
 }
 
@@ -179,5 +218,13 @@ impl Not for Bitboard {
 
     fn not(self) -> Self::Output {
         Self(!self.0)
+    }
+}
+
+impl Mul<u64> for Bitboard {
+    type Output = u64;
+
+    fn mul(self, rhs: u64) -> Self::Output {
+        self.0.overflowing_mul(rhs).0
     }
 }
