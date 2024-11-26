@@ -9,23 +9,6 @@ use crate::{
     square::Square,
 };
 
-pub enum MoveKind {
-    Quiet,
-    Capture(Piece),
-    DoublePush,
-    EnPassant,
-    Castling(Castling),
-    Promotion(Piece),
-    PromotionCapture(Piece, Piece),
-}
-
-pub struct Move {
-    pub from: Square,
-    pub to: Square,
-    pub piece: Piece,
-    pub kind: MoveKind,
-}
-
 pub fn king_attacks(sq: Square) -> Bitboard {
     let king = Bitboard::from(sq);
     let mut attacks = Bitboard::EMPTY;

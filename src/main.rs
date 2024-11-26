@@ -2,6 +2,7 @@ use position::Position;
 
 mod bitboard;
 mod magic;
+mod move_types;
 mod movegen;
 mod piece;
 mod position;
