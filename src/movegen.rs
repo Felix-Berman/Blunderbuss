@@ -1,8 +1,30 @@
 use crate::{
     bitboard::Bitboard,
-    piece::Colour::{self, *},
+    magic::{BISHOP_BITS, MAGICS, ROOK_BITS},
+    piece::{
+        Colour::{self, *},
+        Piece,
+    },
+    position::Castling,
     square::Square,
 };
+
+pub enum MoveKind {
+    Quiet,
+    Capture(Piece),
+    DoublePush,
+    EnPassant,
+    Castling(Castling),
+    Promotion(Piece),
+    PromotionCapture(Piece, Piece),
+}
+
+pub struct Move {
+    pub from: Square,
+    pub to: Square,
+    pub piece: Piece,
+    pub kind: MoveKind,
+}
 
 pub fn king_attacks(sq: Square) -> Bitboard {
     let king = Bitboard::from(sq);
@@ -49,4 +71,20 @@ pub fn pawn_push(sq: Square, side: Colour) -> Bitboard {
         White => pawn << 8,
         Black => pawn >> 8,
     }
+}
+
+fn rook_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
+    occ &= MAGICS.rook_magics[sq as usize].mask;
+    let mut occ = occ * MAGICS.rook_magics[sq as usize].magic;
+    occ >>= 64 - ROOK_BITS[sq];
+
+    MAGICS.rook_attacks[sq as usize][occ as usize]
+}
+
+fn bishop_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
+    occ &= MAGICS.bishop_magics[sq as usize].mask;
+    let mut occ = occ * MAGICS.bishop_magics[sq as usize].magic;
+    occ >>= 64 - BISHOP_BITS[sq];
+
+    MAGICS.bishop_attacks[sq as usize][occ as usize]
 }
