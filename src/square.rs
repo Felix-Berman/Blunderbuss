@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Index, IndexMut, Sub};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Index, IndexMut, Sub},
+};
 
 use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
 
@@ -17,6 +20,15 @@ pub enum Square {
 }
 
 impl Square {
+    pub const RANK_1: u8 = 7;
+    pub const RANK_2: u8 = 6;
+    pub const RANK_3: u8 = 5;
+    pub const RANK_4: u8 = 4;
+    pub const RANK_5: u8 = 3;
+    pub const RANK_6: u8 = 2;
+    pub const RANK_7: u8 = 1;
+    pub const RANK_8: u8 = 0;
+
     pub fn rank(&self) -> u8 {
         *self as u8 / 8
     }
@@ -95,5 +107,11 @@ impl<T> Index<Square> for [T; 64] {
 impl<T> IndexMut<Square> for [T; 64] {
     fn index_mut(&mut self, index: Square) -> &mut Self::Output {
         &mut self[usize::from(index)]
+    }
+}
+
+impl Display for Square {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", (self.file() + b'a') as char, 8 - self.rank())
     }
 }

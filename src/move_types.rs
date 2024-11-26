@@ -1,5 +1,7 @@
 const MAX_MOVES: usize = 256;
 
+use std::fmt::Display;
+
 use crate::{
     piece::{
         Colour::*,
@@ -41,6 +43,7 @@ impl Move {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct MoveList {
     pub moves: [Move; MAX_MOVES],
     pub sort_scores: [u8; MAX_MOVES],
@@ -93,5 +96,16 @@ impl Iterator for MoveList {
 
         self.curr += 1;
         Some(next_best)
+    }
+}
+
+impl Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut str = format!("{}{}", self.from, self.to);
+        if let MoveKind::Promotion(piece) | MoveKind::PromotionCapture(piece, _) = self.kind {
+            str.push(piece.into())
+        }
+
+        write!(f, "{}", str)
     }
 }

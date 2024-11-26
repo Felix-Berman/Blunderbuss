@@ -29,6 +29,9 @@ impl Bitboard {
     pub const RANK_3: Bitboard = Bitboard(0xff << 40);
     pub const RANK_2: Bitboard = Bitboard(0xff << 48);
     pub const RANK_1: Bitboard = Bitboard(0xff << 56);
+    pub const BACK_RANKS: Bitboard = Bitboard(0xff | 0xff << 56);
+    pub const KINGSIDE_CASTLING: Bitboard = Bitboard(0x60);
+    pub const QUEENSIDE_CASTLING: Bitboard = Bitboard(0xe);
 
     pub fn bitscan(self) -> Option<Square> {
         Square::try_from(self.0.trailing_zeros() as u8).ok()
@@ -48,6 +51,18 @@ impl Bitboard {
 
     pub fn is_empty(&self) -> bool {
         *self == Bitboard::EMPTY
+    }
+
+    pub fn intersects(&self, other: &Bitboard) -> bool {
+        self.0 & other.0 != 0
+    }
+
+    pub fn from_file(file: u8) -> Bitboard {
+        Bitboard::A_FILE << file as usize
+    }
+
+    pub fn from_rank(rank: u8) -> Bitboard {
+        Bitboard::RANK_8 << 8 * rank as usize
     }
 
     pub fn draw(&self) -> String {

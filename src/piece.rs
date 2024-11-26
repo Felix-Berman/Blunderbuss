@@ -1,19 +1,34 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::{
     fmt::Display,
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, Not},
 };
 use Colour::*;
 use Piece::*;
 
-#[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy)]
+pub const PIECES: [Piece; 12] = [
+    Pawn(White),
+    Pawn(Black),
+    Knight(White),
+    Knight(Black),
+    Bishop(White),
+    Bishop(Black),
+    Rook(White),
+    Rook(Black),
+    Queen(White),
+    Queen(Black),
+    King(White),
+    King(Black),
+];
+
+#[derive(PartialEq, IntoPrimitive, TryFromPrimitive, Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum Colour {
     White,
     Black,
 }
 
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Piece {
     Pawn(Colour),
     Knight(Colour),
@@ -68,7 +83,22 @@ impl From<Piece> for char {
     }
 }
 
+impl From<Colour> for char {
+    fn from(value: Colour) -> Self {
+        match value {
+            White => 'w',
+            Black => 'b',
+        }
+    }
+}
+
 impl Display for Piece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", char::from(*self))
+    }
+}
+
+impl Display for Colour {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", char::from(*self))
     }
@@ -144,6 +174,17 @@ impl TryFrom<usize> for Piece {
             4 => Ok(Queen(colour)),
             5 => Ok(King(colour)),
             _ => Err(format!("index ({value}) out of piece range")),
+        }
+    }
+}
+
+impl Not for Colour {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        match self {
+            White => Black,
+            Black => White,
         }
     }
 }

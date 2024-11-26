@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display,
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::{
     bitboard::Bitboard,
@@ -12,53 +9,16 @@ use crate::{
     square::Square,
 };
 
-#[derive(Clone, Copy)]
-pub struct Castling(u8);
-
-impl Castling {
-    pub const W_KINGSIDE: Castling = Castling(0b0001);
-    pub const W_QUEENSIDE: Castling = Castling(0b0010);
-    pub const B_KINGSIDE: Castling = Castling(0b0100);
-    pub const B_QUEENSIDE: Castling = Castling(0b1000);
-    pub const NONE: Castling = Castling(0);
-}
-
-impl Add for Castling {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Castling(self.0 | rhs.0)
-    }
-}
-
-impl Sub for Castling {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Castling(self.0 & !rhs.0)
-    }
-}
-
-impl AddAssign for Castling {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
-    }
-}
-
-impl SubAssign for Castling {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
-    }
-}
+pub const STARTING_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 pub struct Position {
-    pieces: [Bitboard; 12],
-    occupancy: [Bitboard; 2],
-    active_colour: Colour,
-    castling: Castling,
-    ep_bb: Bitboard,
-    halfmove_clk: u32,
-    fullmove_clk: u32,
+    pub pieces: [Bitboard; 12],
+    pub occupancy: [Bitboard; 2],
+    pub active_colour: Colour,
+    pub castling: Castling,
+    pub ep_bb: Bitboard,
+    pub halfmove_clk: u32,
+    pub fullmove_clk: u32,
 }
 
 impl Position {
@@ -74,8 +34,42 @@ impl Position {
         }
     }
 
-    pub fn ep_sq(self) -> Option<Square> {
+    pub fn occupied(&self) -> Bitboard {
+        self.occupancy[White] | self.occupancy[Black]
+    }
+
+    pub fn ep_sq(&self) -> Option<Square> {
         self.ep_bb.bitscan()
+    }
+
+    pub fn iter_pieces(&self) -> impl Iterator<Item = (Piece, &Bitboard)> {
+        self.pieces
+            .iter()
+            .enumerate()
+            .map(|(i, bb)| (Piece::try_from(i).unwrap(), bb))
+    }
+
+    pub fn iter_pieces_by_colour(
+        &self,
+        colour: Colour,
+    ) -> impl Iterator<Item = (Piece, &Bitboard)> {
+        match colour {
+            White => self.pieces.iter(),
+            Black => self.pieces[1..].iter(),
+        }
+        .enumerate()
+        .step_by(2)
+        .map(|(i, bb)| (Piece::try_from(i).unwrap(), bb))
+    }
+
+    pub fn piece_on(&self, sq: Square) -> Option<Piece> {
+        for (piece, bb) in self.iter_pieces() {
+            if bb.is_set(sq) {
+                return Some(piece);
+            }
+        }
+
+        None
     }
 
     pub fn read_fen(&mut self, fen: &str) -> Result<(), String> {
@@ -95,6 +89,7 @@ impl Position {
             if c.is_alphabetic() {
                 let piece = Piece::try_from(c)?;
                 self.pieces[piece].set_bit(sq);
+                self.occupancy[piece.colour()].set_bit(sq);
                 sq += 1;
             }
         }
@@ -139,20 +134,20 @@ impl Position {
         Ok(())
     }
 
-    pub fn gen_mailbox(&self) -> Result<[Option<Piece>; 64], String> {
+    pub fn gen_mailbox(&self) -> [Option<Piece>; 64] {
         let mut board: [Option<Piece>; 64] = [None; 64];
-        for (piece, piece_bb) in self.pieces.iter().enumerate() {
+        for (piece, piece_bb) in self.iter_pieces() {
             for sq in *piece_bb {
-                board[sq] = Some(Piece::try_from(piece)?);
+                board[sq] = Some(piece);
             }
         }
 
-        Ok(board)
+        board
     }
 
-    pub fn draw_board(&self) -> Result<String, String> {
+    pub fn draw_board(&self) -> String {
         let divider = "\n  +---+---+---+---+---+---+---+---+\n";
-        let board = self.gen_mailbox()?;
+        let board = self.gen_mailbox();
 
         let mut board_str = String::new();
         for (sq, &occupant) in board.iter().enumerate() {
@@ -169,6 +164,53 @@ impl Position {
         board_str.push_str(divider);
         board_str.push_str("    A   B   C   D   E   F   G   H\n");
 
-        Ok(board_str)
+        board_str
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Castling(u8);
+
+impl Castling {
+    pub const W_KINGSIDE: Castling = Castling(0b0001);
+    pub const W_QUEENSIDE: Castling = Castling(0b0010);
+    pub const B_KINGSIDE: Castling = Castling(0b0100);
+    pub const B_QUEENSIDE: Castling = Castling(0b1000);
+    pub const NONE: Castling = Castling(0);
+
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    pub fn is_available(&self, castling: Castling) -> bool {
+        self.0 & castling.0 != 0
+    }
+}
+
+impl Add for Castling {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Castling(self.0 | rhs.0)
+    }
+}
+
+impl Sub for Castling {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Castling(self.0 & !rhs.0)
+    }
+}
+
+impl AddAssign for Castling {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl SubAssign for Castling {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
     }
 }
