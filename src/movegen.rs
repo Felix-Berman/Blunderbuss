@@ -115,7 +115,13 @@ impl Position {
             }
             .expect("pawn on back rank");
 
-            debug_assert_eq!(self.piece_on(from), Some(Pawn(c)));
+            debug_assert_eq!(
+                self.piece_on(from),
+                Some(Pawn(c)),
+                "from: {}, to: {}",
+                from,
+                to
+            );
 
             if to.rank() == Square::RANK_1 || to.rank() == Square::RANK_8 {
                 for p in [Queen(c), Rook(c), Bishop(c), Knight(c)] {
@@ -142,13 +148,19 @@ impl Position {
             }
             .expect("pawn on back rank");
 
-            debug_assert_eq!(self.piece_on(from), Some(Pawn(c)));
+            debug_assert_eq!(
+                self.piece_on(from),
+                Some(Pawn(c)),
+                "from: {}, to: {}",
+                from,
+                to
+            );
 
             moves.push(Move {
                 from,
                 to,
                 piece: Pawn(c),
-                kind: MoveKind::Quiet,
+                kind: MoveKind::DoublePush,
             });
         }
     }
@@ -170,7 +182,6 @@ impl Position {
 
             for from in from_sqs {
                 let from = from.expect("pawn on back rank");
-                debug_assert_eq!(self.piece_on(from), Some(Pawn(c)));
 
                 if let Some(Pawn(c)) = self.piece_on(from) {
                     if to.rank() == Square::RANK_1 || to.rank() == Square::RANK_8 {
