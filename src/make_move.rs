@@ -70,13 +70,14 @@ impl Position {
             }
         }
 
-        if let Rook(_) = mv.piece {
-            match mv.from {
+        // remove castling for move from or to rook starting square
+        for sq in from_to_bb & Bitboard::ROOKS {
+            match sq {
                 Square::H1 => self.castling -= Castling::W_KINGSIDE,
                 Square::A1 => self.castling -= Castling::W_QUEENSIDE,
                 Square::H8 => self.castling -= Castling::B_KINGSIDE,
                 Square::A8 => self.castling -= Castling::B_QUEENSIDE,
-                _ => (),
+                _ => unreachable!(),
             }
         }
 
@@ -90,5 +91,11 @@ impl Position {
             self.gen_occupancy();
             self.occupied()
         });
+    }
+
+    pub fn find_algebraic_move(&self, mv_str: &str) -> Option<Move> {
+        let mut moves = self.gen_moves();
+
+        moves.find(|&mv| mv.to_string() == mv_str)
     }
 }

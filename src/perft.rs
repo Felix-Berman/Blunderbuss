@@ -32,7 +32,7 @@ pub fn perft_divide(pos: &mut Position, depth: u8) {
             continue;
         }
 
-        let nodes = perft(pos, depth - 1);
+        let nodes = perft(&mut next_pos, depth - 1);
         println!("{} {}", mv, nodes);
         total_nodes += nodes;
     }

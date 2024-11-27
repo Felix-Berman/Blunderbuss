@@ -32,6 +32,7 @@ impl Bitboard {
     pub const BACK_RANKS: Bitboard = Bitboard(0xff | 0xff << 56);
     pub const KINGSIDE_CASTLING: Bitboard = Bitboard(0x60);
     pub const QUEENSIDE_CASTLING: Bitboard = Bitboard(0xe);
+    pub const ROOKS: Bitboard = Bitboard(0x8100000000000081);
 
     pub fn bitscan(self) -> Option<Square> {
         Square::try_from(self.0.trailing_zeros() as u8).ok()
