@@ -11,6 +11,7 @@ use crate::{
 
 pub const STARTING_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+#[derive(Clone, Copy)]
 pub struct Position {
     pub pieces: [Bitboard; 12],
     pub occupancy: [Bitboard; 2],
