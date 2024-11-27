@@ -43,12 +43,12 @@ pub fn pawn_pushes(bb: Bitboard, side: Colour, occ: Bitboard) -> (Bitboard, Bitb
     match side {
         White => {
             let single_push = (bb >> 8) & !occ;
-            let double_push = (single_push >> 8) & !occ;
+            let double_push = (single_push >> 8) & !occ & Bitboard::RANK_4;
             (single_push, double_push)
         }
         Black => {
             let single_push = (bb << 8) & !occ;
-            let double_push = (single_push << 8) & !occ;
+            let double_push = (single_push << 8) & !occ & Bitboard::RANK_5;
             (single_push, double_push)
         }
     }

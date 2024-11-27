@@ -1,3 +1,5 @@
+use std::io;
+
 use crate::position::Position;
 
 pub fn perft(pos: &mut Position, depth: u8) -> u32 {
