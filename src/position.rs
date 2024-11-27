@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 use crate::{
     bitboard::Bitboard,
@@ -135,6 +138,47 @@ impl Position {
         Ok(())
     }
 
+    pub fn write_fen(&self) -> String {
+        let mut fen = String::new();
+
+        let mut empty_count = 0;
+        let board = self.gen_mailbox();
+        for rank in 0..8 {
+            for file in 0..8 {
+                let sq = Square::try_from((rank, file)).unwrap();
+                if let Some(piece) = board[sq] {
+                    if empty_count != 0 {
+                        fen.push((b'0' + empty_count) as char);
+                    }
+                    fen.push_str(&piece.to_string());
+                    empty_count = 0;
+                } else {
+                    empty_count += 1;
+                }
+            }
+
+            if empty_count != 0 {
+                fen.push((b'0' + empty_count) as char);
+                empty_count = 0;
+            }
+            if rank < 7 {
+                fen.push('/');
+            }
+        }
+
+        fen.push_str(&format!(" {} {} ", self.active_colour, self.castling));
+
+        if let Some(sq) = self.ep_sq() {
+            fen.push_str(&format!("{}", sq))
+        } else {
+            fen.push('-');
+        }
+
+        fen.push_str(&format!(" {} {}", self.halfmove_clk, self.fullmove_clk));
+
+        fen
+    }
+
     pub fn gen_mailbox(&self) -> [Option<Piece>; 64] {
         let mut board: [Option<Piece>; 64] = [None; 64];
         for (piece, piece_bb) in self.iter_pieces() {
@@ -213,5 +257,28 @@ impl AddAssign for Castling {
 impl SubAssign for Castling {
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
+    }
+}
+
+impl Display for Castling {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut str = String::new();
+        if self.is_available(Castling::W_KINGSIDE) {
+            str.push(Piece::King(White).into())
+        }
+        if self.is_available(Castling::W_QUEENSIDE) {
+            str.push(Piece::Queen(White).into())
+        }
+        if self.is_available(Castling::B_KINGSIDE) {
+            str.push(Piece::King(Black).into())
+        }
+        if self.is_available(Castling::B_QUEENSIDE) {
+            str.push(Piece::Queen(Black).into())
+        }
+        if self.is_empty() {
+            str.push('-');
+        }
+
+        write!(f, "{}", str)
     }
 }

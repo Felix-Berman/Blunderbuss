@@ -16,4 +16,6 @@ fn main() {
     _ = pos.read_fen(STARTING_FEN);
 
     perft_divide(&mut pos, 3);
+
+    println!("{}\n{}", pos.draw_board(), pos.write_fen());
 }
