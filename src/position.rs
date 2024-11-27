@@ -42,6 +42,12 @@ impl Position {
         self.occupancy[White] | self.occupancy[Black]
     }
 
+    pub fn gen_occupancy(&mut self) {
+        for (i, bb) in self.pieces.iter().enumerate() {
+            self.occupancy[i % 2] |= *bb;
+        }
+    }
+
     pub fn ep_sq(&self) -> Option<Square> {
         self.ep_bb.bitscan()
     }
@@ -57,13 +63,11 @@ impl Position {
         &self,
         colour: Colour,
     ) -> impl Iterator<Item = (Piece, &Bitboard)> {
-        match colour {
-            White => self.pieces.iter(),
-            Black => self.pieces[1..].iter(),
-        }
-        .enumerate()
-        .step_by(2)
-        .map(|(i, bb)| (Piece::try_from(i).unwrap(), bb))
+        self.pieces
+            .iter()
+            .enumerate()
+            .map(|(i, bb)| (Piece::try_from(i).unwrap(), bb))
+            .filter(move |(piece, _)| piece.colour() == colour)
     }
 
     pub fn piece_on(&self, sq: Square) -> Option<Piece> {

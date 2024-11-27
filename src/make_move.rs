@@ -85,5 +85,10 @@ impl Position {
         }
 
         self.active_colour = them;
+
+        debug_assert_eq!(self.occupied(), {
+            self.gen_occupancy();
+            self.occupied()
+        });
     }
 }

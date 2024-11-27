@@ -75,11 +75,13 @@ mod tests {
             let expected = test[depth].split_whitespace().collect::<Vec<&str>>()[1]
                 .parse()
                 .unwrap();
-            if nodes != expected {
-                println!("{}", position.draw_board());
-                println!("depth: {}", depth);
-                panic!("found {} nodes\nexpected {} nodes", nodes, expected);
-            }
+            assert_eq!(
+                nodes,
+                expected,
+                "depth: {}\nfen: {}",
+                depth,
+                position.write_fen()
+            );
         }
 
         Ok(())

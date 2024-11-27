@@ -101,6 +101,7 @@ impl Position {
             .expect(&format!("Missing king {side}"));
         self.is_sq_attacked_by(king, !side)
     }
+
     pub fn gen_pawn_pushes(&self, moves: &mut MoveList) {
         let c = self.active_colour;
         let occ = self.occupied();
@@ -253,36 +254,6 @@ impl Position {
                 }
             }
         }
-    }
-
-    fn gen_double_pushes(&self, moves: &mut MoveList, c: Colour, from: Square) {
-        let to = match (c, from.rank()) {
-            (White, Square::RANK_2) => {
-                let from_bb = Bitboard::from(from);
-                let path = from_bb >> 8 | from_bb >> 16;
-                if self.occupied().intersects(&path) {
-                    return;
-                }
-
-                (from - 16).unwrap()
-            }
-            (Black, Square::RANK_7) => {
-                let from_bb = Bitboard::from(from);
-                let path = from_bb << 8 | from_bb << 16;
-                if self.occupied().intersects(&path) {
-                    return;
-                }
-
-                (from + 16u8).unwrap()
-            }
-            _ => return,
-        };
-        moves.push(Move {
-            from,
-            to,
-            piece: Pawn(c),
-            kind: MoveKind::DoublePush,
-        });
     }
 
     fn gen_en_passant(&self, moves: &mut MoveList) {
