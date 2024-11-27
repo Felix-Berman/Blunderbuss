@@ -73,13 +73,17 @@ impl Bitboard {
                 bb.push('\n');
             }
             if self.0 & 1 << sq == 0 {
-                bb.push('0');
+                bb.push_str(" 0");
             } else {
-                bb.push('1');
+                bb.push_str(" 1");
             }
         }
 
         bb
+    }
+
+    pub fn bits(&self) -> u64 {
+        self.0
     }
 }
 

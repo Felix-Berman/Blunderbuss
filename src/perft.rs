@@ -88,5 +88,5 @@ mod tests {
 
         Ok(())
     }
-    test_cases!(0, 50);
+    test_cases!(0, 126);
 }

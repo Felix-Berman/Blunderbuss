@@ -61,6 +61,29 @@ pub fn pawn_attacks(bb: Bitboard, side: Colour) -> Bitboard {
     }
 }
 
+pub fn pawn_captures(bb: Bitboard, side: Colour, opponent: Bitboard) -> [(Bitboard, Bitboard); 2] {
+    match side {
+        White => {
+            let mut from_left = bb & !Bitboard::A_FILE;
+            let mut from_right = bb & !Bitboard::H_FILE;
+            let to_left = from_left >> 9 & opponent;
+            let to_right = from_right >> 7 & opponent;
+            from_left &= to_left << 9;
+            from_right &= to_right << 7;
+            [(from_left, to_left), (from_right, to_right)]
+        }
+        Black => {
+            let mut from_left = bb & !Bitboard::A_FILE;
+            let mut from_right = bb & !Bitboard::H_FILE;
+            let to_left = from_left << 7 & opponent;
+            let to_right = from_right << 9 & opponent;
+            from_left &= to_left >> 7;
+            from_right &= to_right >> 9;
+            [(from_left, to_left), (from_right, to_right)]
+        }
+    }
+}
+
 fn rook_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
     occ &= MAGICS.rook_magics[sq as usize].mask;
     let mut occ = occ * MAGICS.rook_magics[sq as usize].magic;
@@ -170,37 +193,28 @@ impl Position {
         let opponent = self.occupancy[!c];
         let bb = self.pieces[Pawn(c)];
 
-        for to in pawn_attacks(bb, c) & opponent {
-            let from_sqs = match c {
-                White => [to + 7u8, to + 9u8],
-                Black => [to - 7u8, to - 9u8],
-            };
+        for (from_bb, to_bb) in pawn_captures(bb, c, opponent) {
+            for (from, to) in from_bb.zip(to_bb) {
+                let captured = self
+                    .piece_on(to)
+                    .expect("occupancy and piece bitboards out of sync");
 
-            let captured = self
-                .piece_on(to)
-                .expect("occupancy and piece bitboards out of sync");
-
-            for from in from_sqs {
-                let from = from.expect("pawn on back rank");
-
-                if let Some(Pawn(c)) = self.piece_on(from) {
-                    if to.rank() == Square::RANK_1 || to.rank() == Square::RANK_8 {
-                        for p in [Queen(c), Rook(c), Bishop(c), Knight(c)] {
-                            moves.push(Move {
-                                from,
-                                to,
-                                piece: Pawn(c),
-                                kind: MoveKind::PromotionCapture(p, captured),
-                            });
-                        }
-                    } else {
+                if to.rank() == Square::RANK_1 || to.rank() == Square::RANK_8 {
+                    for p in [Queen(c), Rook(c), Bishop(c), Knight(c)] {
                         moves.push(Move {
                             from,
                             to,
                             piece: Pawn(c),
-                            kind: MoveKind::Capture(captured),
+                            kind: MoveKind::PromotionCapture(p, captured),
                         });
                     }
+                } else {
+                    moves.push(Move {
+                        from,
+                        to,
+                        piece: Pawn(c),
+                        kind: MoveKind::Capture(captured),
+                    });
                 }
             }
         }
