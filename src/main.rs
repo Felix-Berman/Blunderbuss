@@ -1,8 +1,8 @@
 use position::{Position, STARTING_FEN};
-use square::Square;
 
 mod bitboard;
 mod magic;
+mod make_move;
 mod move_types;
 mod movegen;
 mod piece;
@@ -20,4 +20,7 @@ fn main() {
         println!("{mv}");
     }
     println!("moves: {}", moves.length);
+
+    pos.make_move(moves[0]);
+    println!("{}", pos.draw_board());
 }

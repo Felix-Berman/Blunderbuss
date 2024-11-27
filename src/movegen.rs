@@ -319,7 +319,7 @@ impl Position {
                         from: Square::E1,
                         to: Square::G1,
                         piece: King(White),
-                        kind: MoveKind::Castling(Castling::W_KINGSIDE),
+                        kind: MoveKind::Castle(Castling::W_KINGSIDE),
                     });
                 }
                 if self.castling.is_available(Castling::W_QUEENSIDE)
@@ -332,7 +332,7 @@ impl Position {
                         from: Square::E1,
                         to: Square::C1,
                         piece: King(White),
-                        kind: MoveKind::Castling(Castling::W_QUEENSIDE),
+                        kind: MoveKind::Castle(Castling::W_QUEENSIDE),
                     });
                 }
             }
@@ -347,7 +347,7 @@ impl Position {
                         from: Square::E8,
                         to: Square::G8,
                         piece: King(Black),
-                        kind: MoveKind::Castling(Castling::B_KINGSIDE),
+                        kind: MoveKind::Castle(Castling::B_KINGSIDE),
                     });
                 }
                 if self.castling.is_available(Castling::B_QUEENSIDE)
@@ -360,7 +360,7 @@ impl Position {
                         from: Square::E8,
                         to: Square::C8,
                         piece: King(Black),
-                        kind: MoveKind::Castling(Castling::B_QUEENSIDE),
+                        kind: MoveKind::Castle(Castling::B_QUEENSIDE),
                     });
                 }
             }

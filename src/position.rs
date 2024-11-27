@@ -168,7 +168,7 @@ impl Position {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Castling(u8);
 
 impl Castling {

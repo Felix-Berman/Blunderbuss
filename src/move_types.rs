@@ -1,6 +1,6 @@
 const MAX_MOVES: usize = 256;
 
-use std::fmt::Display;
+use std::{fmt::Display, ops::Index};
 
 use crate::{
     piece::{
@@ -17,7 +17,7 @@ pub enum MoveKind {
     Capture(Piece),
     DoublePush,
     EnPassant,
-    Castling(Castling),
+    Castle(Castling),
     Promotion(Piece),
     PromotionCapture(Piece, Piece),
 }
@@ -96,6 +96,14 @@ impl Iterator for MoveList {
 
         self.curr += 1;
         Some(next_best)
+    }
+}
+
+impl Index<usize> for MoveList {
+    type Output = Move;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.moves[index]
     }
 }
 
