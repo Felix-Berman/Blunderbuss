@@ -118,6 +118,7 @@ impl Position {
                 'Q' => self.castling += Castling::W_QUEENSIDE,
                 'k' => self.castling += Castling::B_KINGSIDE,
                 'q' => self.castling += Castling::B_QUEENSIDE,
+                '-' => break,
                 _ => return Err(format!("Invalid char {c}")),
             }
         }

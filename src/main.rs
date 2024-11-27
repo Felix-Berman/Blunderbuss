@@ -13,20 +13,6 @@ mod square;
 
 fn main() {
     let mut pos = Position::new();
-    _ = pos.read_fen("R7/8/8/8/8/8/1k6/4K3 b - - 1 1");
-
-    let depth = 2;
-    perft_divide(&mut pos, depth);
-
-    println!("{}", perft(&mut pos, depth));
+    _ = pos.read_fen("8/1n4N1/2k5/8/8/5K2/1N4n1/8 w - - 0 1");
     println!("{}\n{}", pos.draw_board(), pos.write_fen());
-    let moves = pos.gen_moves();
-    for mv in moves {
-        println!("{mv}");
-    }
-    pos.make_move(moves[0]);
-
-    println!("{}\n{}", pos.draw_board(), pos.write_fen());
-    perft_divide(&mut pos, depth - 1);
-    println!("{}", perft(&mut pos, depth - 1));
 }
