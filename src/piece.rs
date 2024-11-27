@@ -125,9 +125,18 @@ impl<T> Index<Piece> for [T; 12] {
         &self[usize::from(index)]
     }
 }
+
 impl<T> IndexMut<Piece> for [T; 12] {
     fn index_mut(&mut self, index: Piece) -> &mut Self::Output {
         &mut self[usize::from(index)]
+    }
+}
+
+impl<T> Index<Piece> for [T; 6] {
+    type Output = T;
+
+    fn index(&self, index: Piece) -> &Self::Output {
+        &self[usize::from(index) / 2]
     }
 }
 
