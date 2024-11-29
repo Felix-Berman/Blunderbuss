@@ -1,5 +1,6 @@
 use evaluate::evaluate;
 use position::{Position, STARTING_FEN};
+use search::negamax;
 
 mod bitboard;
 mod evaluate;
@@ -10,6 +11,7 @@ mod movegen;
 mod perft;
 mod piece;
 mod position;
+mod search;
 mod square;
 
 fn main() {
@@ -17,5 +19,5 @@ fn main() {
     _ = pos.read_fen(STARTING_FEN);
 
     println!("{}\n{}", pos.draw_board(), pos.write_fen());
-    println!("evaluation: {}", evaluate(&pos))
+    println!("{}", negamax(&pos, -10000, 10000, 3));
 }
