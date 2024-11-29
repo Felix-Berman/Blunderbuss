@@ -1,7 +1,8 @@
 [package]
-name = "blunderbuss"
+name = "Blunderbuss"
 version = "0.1.0"
 edition = "2021"
+authors = ["Felix Berman"]
 
 [dependencies]
 itertools = "0.13.0"

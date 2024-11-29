@@ -38,6 +38,10 @@ impl Position {
         }
     }
 
+    pub fn reset(&mut self) {
+        *self = Position::new();
+    }
+
     pub fn occupied(&self) -> Bitboard {
         self.occupancy[White] | self.occupancy[Black]
     }
@@ -81,6 +85,7 @@ impl Position {
     }
 
     pub fn read_fen(&mut self, fen: &str) -> Result<(), String> {
+        self.reset();
         let mut fen_iter = fen.split_whitespace();
 
         let fen_board = fen_iter.next().ok_or("missing board string")?;

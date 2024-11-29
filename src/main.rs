@@ -1,6 +1,4 @@
-use evaluate::evaluate;
-use position::{Position, STARTING_FEN};
-use search::negamax;
+use uci::uci_loop;
 
 mod bitboard;
 mod evaluate;
@@ -13,11 +11,11 @@ mod piece;
 mod position;
 mod search;
 mod square;
+mod uci;
 
 fn main() {
-    let mut pos = Position::new();
-    _ = pos.read_fen(STARTING_FEN);
-
-    println!("{}\n{}", pos.draw_board(), pos.write_fen());
-    println!("{}", negamax(&pos, -10000, 10000, 3));
+    match uci_loop() {
+        Ok(()) => (),
+        Err(err) => println!("info string Error: {:?}", err),
+    }
 }

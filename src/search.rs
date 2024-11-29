@@ -2,6 +2,7 @@ use crate::{evaluate::evaluate, move_types::Move, position::Position};
 
 const MIN: i32 = -1_000_000;
 const MAX: i32 = 1_000_000;
+pub const MAX_DEPTH: u8 = 64;
 
 pub fn negamax(pos: &Position, mut alpha: i32, beta: i32, depth: u8) -> i32 {
     if depth == 0 {
