@@ -16,7 +16,7 @@ pub fn negamax(pos: &Position, mut alpha: i32, beta: i32, depth: u8) -> i32 {
         let mut next_pos = *pos;
         next_pos.make_move(mv);
 
-        let score = negamax(&next_pos, -beta, -alpha, depth - 1);
+        let score = -negamax(&next_pos, -beta, -alpha, depth - 1);
 
         if score > best {
             best = score;
@@ -42,7 +42,7 @@ pub fn root_search(pos: &Position, depth: u8) -> (Move, i32) {
         let mut next_pos = *pos;
         next_pos.make_move(mv);
 
-        let score = negamax(&next_pos, MIN, MAX, depth - 1);
+        let score = -negamax(&next_pos, MIN, MAX, depth - 1);
 
         if score > best_score {
             best_move = mv;
