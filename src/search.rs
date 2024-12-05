@@ -136,6 +136,7 @@ pub fn negamax(
 }
 
 pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
+    let mut be_quiet = true;
     let mut best_move = Move::NULL;
 
     let mut moves = pos.gen_moves();
@@ -148,8 +149,9 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
 
         moves.score(best_move);
         for (i, mv) in moves.enumerate() {
-            if timer.elapsed().as_secs() > 1 {
-                println!("info currmove {} currmovenumber {}", mv, i + 1)
+            if !be_quiet || timer.elapsed().as_secs() > 1 {
+                be_quiet = false;
+                println!("info currmove {} currmovenumber {}", mv, i + 1);
             }
 
             let mut next_pos = pos;

@@ -129,8 +129,8 @@ fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
 
         let total_time = time + increment * moves_to_go as u32;
         let current_move = pos.ply / 2 + 1;
-        let end_ply = current_move + moves_to_go;
-        let allowed_time = total_time.mul_f32(percent_time_for_move(pos.ply, end_ply));
+        let final_move = current_move + moves_to_go;
+        let allowed_time = total_time.mul_f32(percent_time_for_move(current_move, final_move));
         timer.set(allowed_time)
     }
 
