@@ -32,6 +32,7 @@ fn spawn_stdin_channel() -> Receiver<String> {
 
 pub fn uci_loop() -> io::Result<()> {
     let mut pos = Position::new();
+    _ = pos.read_fen(STARTING_FEN);
     let mut stop = Arc::new(AtomicBool::new(false));
     let mut timer = Timer::new();
     let input_channel = spawn_stdin_channel();
@@ -116,8 +117,7 @@ fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
     }
 
     thread::spawn(move || {
-        let (mv, score) = root_search(pos, info);
-        println!("info score cp {}", score);
+        let mv = root_search(pos, info);
         println!("bestmove {}", mv);
     });
 
