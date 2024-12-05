@@ -1,5 +1,6 @@
 use crate::position::Position;
 
+#[allow(dead_code)]
 pub fn perft(pos: &mut Position, depth: u8) -> u32 {
     if depth == 0 {
         return 1;
@@ -21,6 +22,7 @@ pub fn perft(pos: &mut Position, depth: u8) -> u32 {
     nodes
 }
 
+#[allow(dead_code)]
 pub fn perft_divide(pos: &mut Position, depth: u8) {
     let mut total_nodes = 0;
 

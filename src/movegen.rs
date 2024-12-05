@@ -122,7 +122,7 @@ impl Position {
         let test_side = !self.active_colour;
         let king = self.pieces[King(test_side)]
             .bitscan()
-            .expect(&format!("Missing king {test_side}"));
+            .unwrap_or_else(|| panic!("Missing king {test_side}"));
         self.is_sq_attacked_by(king, !test_side)
     }
 

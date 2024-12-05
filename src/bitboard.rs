@@ -1,9 +1,6 @@
-use std::{
-    fmt::Display,
-    ops::{
-        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, Not,
-        Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
-    },
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Mul, Not, Shl,
+    ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
 use crate::square::Square;
@@ -11,6 +8,7 @@ use crate::square::Square;
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub struct Bitboard(u64);
 
+#[allow(dead_code)]
 impl Bitboard {
     pub const EMPTY: Bitboard = Bitboard(0);
     pub const A_FILE: Bitboard = Bitboard(0x101010101010101);
@@ -63,7 +61,7 @@ impl Bitboard {
     }
 
     pub fn from_rank(rank: u8) -> Bitboard {
-        Bitboard::RANK_8 << 8 * rank as usize
+        Bitboard::RANK_8 << (8 * rank as usize)
     }
 
     pub fn draw(&self) -> String {

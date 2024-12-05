@@ -1,7 +1,6 @@
 use crate::{evaluate::evaluate, move_types::Move, position::Position};
 use std::{
     fmt::Display,
-    ops::Index,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,

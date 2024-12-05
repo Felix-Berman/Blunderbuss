@@ -51,6 +51,7 @@ pub struct MoveList {
     pub curr: usize,
 }
 
+#[allow(dead_code)]
 impl MoveList {
     pub fn new() -> MoveList {
         MoveList {

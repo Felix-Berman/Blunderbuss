@@ -6,6 +6,7 @@ use std::{
 use Colour::*;
 use Piece::*;
 
+#[allow(dead_code)]
 pub const PIECES: [Piece; 12] = [
     Pawn(White),
     Pawn(Black),
@@ -54,7 +55,7 @@ impl Piece {
 impl From<Piece> for usize {
     fn from(value: Piece) -> Self {
         match value {
-            Pawn(c) => 0 + c as usize,
+            Pawn(c) => c as usize,
             Knight(c) => 2 + c as usize,
             Bishop(c) => 4 + c as usize,
             Rook(c) => 6 + c as usize,

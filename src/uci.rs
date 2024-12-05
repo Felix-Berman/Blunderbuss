@@ -38,7 +38,7 @@ pub fn uci_loop() -> io::Result<()> {
     let input_channel = spawn_stdin_channel();
 
     'running: loop {
-        if let Some(input) = input_channel.try_recv().ok() {
+        if let Ok(input) = input_channel.try_recv() {
             let mut tokens = input.split_whitespace();
 
             match tokens.next() {
@@ -48,7 +48,7 @@ pub fn uci_loop() -> io::Result<()> {
                 Some("setoption") => todo!(),
                 Some("ucinewgame") => _ = pos.read_fen(STARTING_FEN),
                 Some("position") => position(tokens, &mut pos),
-                Some("go") => (stop, timer) = go(tokens, pos.clone()),
+                Some("go") => (stop, timer) = go(tokens, pos),
                 Some("stop") => stop.store(true, Ordering::Relaxed),
                 Some("ponderhit") => todo!(),
                 Some("draw") => println!("{}\n{}", pos.draw_board(), pos.write_fen()),
@@ -121,7 +121,7 @@ fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
         println!("bestmove {}", mv);
     });
 
-    if !timer.active && !(white_time.is_zero() && black_time.is_zero()) {
+    if !(timer.active || white_time.is_zero() && black_time.is_zero()) {
         let (time, increment) = match pos.active_colour {
             White => (white_time, white_increment),
             Black => (black_time, black_increment),
@@ -140,7 +140,7 @@ fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
 fn parse_duration(tokens: &mut SplitWhitespace) -> Duration {
     tokens
         .next()
-        .and_then(|s| Some(Duration::from_millis(s.parse().unwrap())))
+        .map(|s| Duration::from_millis(s.parse().unwrap()))
         .unwrap()
 }
 
@@ -188,8 +188,8 @@ lazy_static! {
 
 fn gen_time_curve() -> [f32; PLY_SIZE] {
     let mut curve = [0.0; PLY_SIZE];
-    for x in 0..PLY_SIZE {
-        curve[x] = time_function((x as f32 - SHIFT) / SCALE);
+    for (x, item) in curve.iter_mut().enumerate() {
+        *item = time_function((x as f32 - SHIFT) / SCALE);
     }
 
     curve
