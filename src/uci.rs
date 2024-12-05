@@ -183,16 +183,8 @@ const SHIFT: f32 = -5.0;
 const PLY_SIZE: usize = Ply::MAX as usize + 1;
 
 lazy_static! {
-    static ref move_weight: [f32; PLY_SIZE] = gen_time_curve();
-}
-
-fn gen_time_curve() -> [f32; PLY_SIZE] {
-    let mut curve = [0.0; PLY_SIZE];
-    for (x, item) in curve.iter_mut().enumerate() {
-        *item = time_function((x as f32 - SHIFT) / SCALE);
-    }
-
-    curve
+    static ref move_weight: [f32; PLY_SIZE] =
+        core::array::from_fn(|x| time_function((x as f32 - SHIFT) / SCALE));
 }
 
 // f(x) = 1/x^{(x-1)}
