@@ -11,7 +11,7 @@ use crate::{
     square::Square::{self, *},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum MoveKind {
     Quiet,
     Capture(Piece),
@@ -22,7 +22,7 @@ pub enum MoveKind {
     PromotionCapture(Piece, Piece),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Move {
     pub from: Square,
     pub to: Square,
@@ -69,6 +69,16 @@ impl MoveList {
     pub fn pop(&mut self) -> Move {
         self.length -= 1;
         self.moves[self.length]
+    }
+
+    pub fn score(&mut self, best_move: Move) {
+        for i in 0..self.length {
+            if self.moves[i] == best_move {
+                self.sort_scores[i] = 100;
+            } else {
+                self.sort_scores[i] = 0;
+            }
+        }
     }
 }
 
