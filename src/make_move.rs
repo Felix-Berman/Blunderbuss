@@ -9,6 +9,7 @@ use crate::{
 impl Position {
     pub fn make_move(&mut self, mv: Move) {
         self.halfmove_clk += 1;
+        self.ply += 1;
         self.ep_bb = Bitboard::EMPTY;
 
         let us = self.active_colour;

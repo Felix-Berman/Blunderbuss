@@ -9,6 +9,7 @@ use crate::{
         Colour::{self, *},
         Piece,
     },
+    search::Ply,
     square::Square,
 };
 
@@ -21,8 +22,8 @@ pub struct Position {
     pub active_colour: Colour,
     pub castling: Castling,
     pub ep_bb: Bitboard,
-    pub halfmove_clk: u32,
-    pub fullmove_clk: u32,
+    pub halfmove_clk: Ply,
+    pub ply: Ply,
 }
 
 impl Position {
@@ -34,7 +35,7 @@ impl Position {
             castling: Castling::NONE,
             ep_bb: Bitboard::EMPTY,
             halfmove_clk: 0,
-            fullmove_clk: 0,
+            ply: 0,
         }
     }
 
@@ -136,14 +137,16 @@ impl Position {
         self.halfmove_clk = fen_iter
             .next()
             .unwrap_or("0")
-            .parse::<u32>()
+            .parse::<Ply>()
             .map_err(|_| "Invalid halfmove clock")?;
 
-        self.fullmove_clk = fen_iter
+        let fullmove_clk = fen_iter
             .next()
             .unwrap_or("1")
-            .parse::<u32>()
-            .map_err(|_| "Invalid halfmove clock")?;
+            .parse::<Ply>()
+            .map_err(|_| "Invalid fullmove clock")?;
+
+        self.ply = 2 * (fullmove_clk + self.active_colour as Ply - 1);
 
         Ok(())
     }
@@ -184,7 +187,9 @@ impl Position {
             fen.push('-');
         }
 
-        fen.push_str(&format!(" {} {}", self.halfmove_clk, self.fullmove_clk));
+        let fullmove_clk = self.ply / 2 + 1;
+
+        fen.push_str(&format!(" {} {}", self.halfmove_clk, fullmove_clk));
 
         fen
     }

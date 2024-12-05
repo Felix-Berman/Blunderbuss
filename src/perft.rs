@@ -1,5 +1,3 @@
-use std::io;
-
 use crate::position::Position;
 
 pub fn perft(pos: &mut Position, depth: u8) -> u32 {
@@ -13,7 +11,7 @@ pub fn perft(pos: &mut Position, depth: u8) -> u32 {
     for mv in moves {
         let mut next_pos = *pos;
         next_pos.make_move(mv);
-        if next_pos.is_check(!next_pos.active_colour) {
+        if next_pos.is_check() {
             continue;
         }
 
@@ -30,7 +28,7 @@ pub fn perft_divide(pos: &mut Position, depth: u8) {
     for mv in moves {
         let mut next_pos = *pos;
         next_pos.make_move(mv);
-        if next_pos.is_check(!next_pos.active_colour) {
+        if next_pos.is_check() {
             continue;
         }
 
