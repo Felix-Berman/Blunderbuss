@@ -137,13 +137,14 @@ pub fn negamax(
 
 pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
     let mut best_move = Move::NULL;
-    let mut best_score = MIN_SCORE;
 
     let mut moves = pos.gen_moves();
     for depth in 1..=info.max_depth {
         let timer = Instant::now();
         info.nodes = 0;
         info.pv.length = depth as usize;
+
+        let mut best_score = MIN_SCORE;
 
         moves.score(best_move);
         for (i, mv) in moves.enumerate() {
