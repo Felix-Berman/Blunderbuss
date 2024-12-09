@@ -12,9 +12,11 @@ pub type Ply = u8;
 pub type Nodes = u32;
 pub type Score = i32;
 
-const MIN_SCORE: Score = -1_000_000;
-const MAX_SCORE: Score = 1_000_000;
+const MIN_SCORE: Score = -CHECKMATE;
+const MAX_SCORE: Score = CHECKMATE;
 const UNRAVEL: Score = Score::MAX;
+const CHECKMATE: Score = UNRAVEL - 1;
+const STALEMATE: Score = 0;
 const MAX_NODES: Nodes = Nodes::MAX;
 pub const MAX_DEPTH: Ply = 64;
 const PV_TBL_SIZE: usize = MAX_DEPTH as usize * (MAX_DEPTH as usize + 1);
@@ -60,12 +62,19 @@ impl PrincipleVariation {
         ply as usize * (2 * MAX_DEPTH as usize + 1 - ply as usize) / 2
     }
 
+    fn reset_ply(&mut self, ply: u8) {
+        self.moves[Self::index_ply(ply)] = Move::NULL;
+    }
+
     fn copy_down(&mut self, mv: Move, ply: u8) {
         let ply_idx = Self::index_ply(ply);
         let next_ply_idx = ply_idx + (MAX_DEPTH - ply) as usize;
 
         self.moves[ply_idx] = mv;
         for i in 0..(self.length - ply as usize) {
+            if self.moves[next_ply_idx + i] == Move::NULL {
+                break;
+            }
             self.moves[ply_idx + i + 1] = self.moves[next_ply_idx + i];
         }
     }
@@ -101,15 +110,17 @@ pub fn negamax(
         return evaluate(&pos);
     }
 
-    let mut best = MIN_SCORE;
-
+    let mut best = -CHECKMATE + info.ply as i32;
+    let mut legal_move_count = 0;
+    info.pv.reset_ply(info.ply);
     let moves = pos.gen_moves();
     for mv in moves {
         let mut next_pos = pos;
         next_pos.make_move(mv);
-        if next_pos.is_check() {
+        if next_pos.is_check(!next_pos.active_colour) {
             continue;
         }
+        legal_move_count += 1;
 
         info.ply += 1;
         let score = -negamax(next_pos, -beta, -alpha, depth - 1, info);
@@ -132,6 +143,14 @@ pub fn negamax(
         }
     }
 
+    if legal_move_count == 0 {
+        if pos.is_check(pos.active_colour) {
+            return -CHECKMATE + info.ply as i32;
+        } else {
+            return STALEMATE;
+        }
+    }
+
     best
 }
 
@@ -145,7 +164,7 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
         info.nodes = 0;
         info.pv.length = depth as usize;
 
-        let mut best_score = MIN_SCORE;
+        let mut best_score = -CHECKMATE;
 
         moves.score(best_move);
         for (i, mv) in moves.enumerate() {
@@ -156,7 +175,7 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
 
             let mut next_pos = pos;
             next_pos.make_move(mv);
-            if next_pos.is_check() {
+            if next_pos.is_check(!next_pos.active_colour) {
                 continue;
             }
 
@@ -176,15 +195,26 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
         }
 
         let time = timer.elapsed();
+        let mut is_mate = false;
+        let mate_in = CHECKMATE - best_score.abs();
+        let score = if mate_in <= depth as i32 {
+            is_mate = true;
+            format!("mate {}", best_score.signum() * (mate_in + 1) / 2)
+        } else {
+            format!("cp {}", best_score)
+        };
         println!(
-            "info depth {} score cp {} time {} nodes {} nps {} pv{}",
+            "info depth {} score {} time {} nodes {} nps {} pv{}",
             depth,
-            best_score,
+            score,
             time.as_millis(),
             info.nodes,
             (1.0 / time.div_f32(info.nodes as f32).as_secs_f32()) as Nodes,
             info.pv,
         );
+        if is_mate {
+            break;
+        }
     }
 
     best_move

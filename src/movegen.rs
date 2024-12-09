@@ -118,12 +118,11 @@ impl Position {
                 .intersects(&(self.pieces[Rook(side)] | self.pieces[Queen(side)]))
     }
 
-    pub fn is_check(&self) -> bool {
-        let test_side = !self.active_colour;
-        let king = self.pieces[King(test_side)]
+    pub fn is_check(&self, side: Colour) -> bool {
+        let king = self.pieces[King(side)]
             .bitscan()
-            .unwrap_or_else(|| panic!("Missing king {test_side}"));
-        self.is_sq_attacked_by(king, !test_side)
+            .unwrap_or_else(|| panic!("Missing king {side}"));
+        self.is_sq_attacked_by(king, !side)
     }
 
     pub fn gen_pawn_pushes(&self, moves: &mut MoveList) {
