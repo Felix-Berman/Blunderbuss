@@ -1,4 +1,8 @@
-use crate::{evaluate::evaluate, move_types::Move, position::Position};
+use crate::{
+    evaluate::evaluate,
+    move_types::{Move, MoveList},
+    position::Position,
+};
 use std::{
     fmt::Display,
     sync::{
@@ -107,7 +111,7 @@ pub fn negamax(
     }
 
     if depth == 0 {
-        return evaluate(&pos);
+        return quiescence_search(pos, alpha, beta, info);
     }
 
     let mut best = -CHECKMATE + info.ply as i32;
@@ -204,8 +208,9 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
             format!("cp {}", best_score)
         };
         println!(
-            "info depth {} score {} time {} nodes {} nps {} pv{}",
+            "info depth {} seldepth {} score {} time {} nodes {} nps {} pv{}",
             depth,
+            info.searched_depth,
             score,
             time.as_millis(),
             info.nodes,
@@ -218,4 +223,44 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
     }
 
     best_move
+}
+
+fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut SearchInfo) -> Score {
+    let standing_pat = evaluate(&pos);
+
+    if standing_pat >= beta {
+        return beta;
+    }
+    if alpha < standing_pat {
+        alpha = standing_pat;
+    }
+
+    info.nodes += 1;
+    if info.ply > info.searched_depth {
+        info.searched_depth = info.ply;
+    }
+
+    let mut moves = MoveList::new();
+    pos.gen_captures(&mut moves);
+    for mv in moves {
+        let mut next_pos = pos;
+        next_pos.make_move(mv);
+        if next_pos.is_check(!next_pos.active_colour) {
+            continue;
+        }
+
+        info.ply += 1;
+        let score = -quiescence_search(next_pos, -beta, -alpha, info);
+        info.ply -= 1;
+
+        if score >= beta {
+            return beta;
+        }
+
+        if score > alpha {
+            alpha = score;
+        }
+    }
+
+    alpha
 }
