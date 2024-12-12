@@ -3,7 +3,7 @@ use crate::{
     evaluate::evaluate,
     move_types::{Move, MoveKind::*, MoveList},
     movegen::{bishop_attacks, rook_attacks},
-    piece::{Colour::*, Piece::*},
+    piece::Piece::*,
     position::Position,
 };
 use std::{
@@ -12,7 +12,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 pub type Ply = u8;
@@ -27,6 +27,8 @@ const STALEMATE: Score = 0;
 const MAX_NODES: Nodes = Nodes::MAX;
 pub const MAX_DEPTH: Ply = 64;
 const PV_TBL_SIZE: usize = MAX_DEPTH as usize * (MAX_DEPTH as usize + 1);
+const ACCEPTABLE_BEST_MOVE_VARATION: f32 = 0.25;
+const ACCEPTABLE_SCORE_STABILITY: f32 = 0.8;
 
 pub struct SearchInfo {
     pub ply: Ply,
@@ -36,6 +38,7 @@ pub struct SearchInfo {
     pub max_nodes: Nodes,
     pub stop: Arc<AtomicBool>,
     pub pv: PrincipleVariation,
+    pub allowed_time: Duration,
 }
 
 impl SearchInfo {
@@ -48,6 +51,7 @@ impl SearchInfo {
             max_nodes: MAX_NODES,
             stop,
             pv: PrincipleVariation::new(),
+            allowed_time: Duration::ZERO,
         }
     }
 }
@@ -162,21 +166,27 @@ pub fn negamax(
 }
 
 pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
-    let mut be_quiet = true;
     let mut best_move = Move::NULL;
+    let mut iteration_moves = [Move::NULL; MAX_DEPTH as usize];
+    let mut iteration_scores = [0; MAX_DEPTH as usize];
+    let outer_timer = Instant::now();
 
     let mut moves = pos.gen_moves();
     for depth in 1..=info.max_depth {
-        let timer = Instant::now();
+        if !info.allowed_time.is_zero() && outer_timer.elapsed() > info.allowed_time / 2 {
+            break;
+        }
+
+        let inner_timer = Instant::now();
         info.nodes = 0;
         info.pv.length = depth as usize;
 
         let mut best_score = -CHECKMATE;
 
+        let mut legal_move_count = 0;
         moves.score(best_move);
         for (i, mv) in moves.enumerate() {
-            if !be_quiet || timer.elapsed().as_secs() > 1 {
-                be_quiet = false;
+            if outer_timer.elapsed().as_secs() > 1 {
                 println!("info currmove {} currmovenumber {}", mv, i + 1);
             }
 
@@ -185,6 +195,7 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
             if next_pos.is_check(!next_pos.active_colour) {
                 continue;
             }
+            legal_move_count += 1;
 
             info.ply += 1;
             let score = -negamax(next_pos, MIN_SCORE, MAX_SCORE, depth - 1, &mut info);
@@ -201,11 +212,9 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
             }
         }
 
-        let time = timer.elapsed();
-        let mut is_mate = false;
+        let time = inner_timer.elapsed();
         let mate_in = CHECKMATE - best_score.abs();
         let score = if mate_in <= depth as i32 {
-            is_mate = true;
             format!("mate {}", best_score.signum() * (mate_in + 1) / 2)
         } else {
             format!("cp {}", best_score)
@@ -220,8 +229,36 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
             (1.0 / time.div_f32(info.nodes as f32).as_secs_f32()) as Nodes,
             info.pv,
         );
-        if is_mate {
+
+        if legal_move_count <= 1 {
             break;
+        }
+
+        iteration_moves[depth as usize - 1] = best_move;
+        iteration_scores[depth as usize - 1] = best_score;
+
+        // todo: break on fluctations between equally good moves (requires multi-pv)
+        let mut prev_move = Move::NULL;
+        let mut best_move_variations = 0.0;
+        let mut prev_score = 0;
+        for (moves_checked, (mv, score)) in iteration_moves
+            .iter()
+            .zip(iteration_scores.iter())
+            .rev()
+            .enumerate()
+        {
+            if *mv != prev_move {
+                best_move_variations += 1.0;
+            }
+
+            if best_move_variations / (moves_checked as f32 + 1.0) < ACCEPTABLE_BEST_MOVE_VARATION
+                && *score as f32 / prev_score as f32 > ACCEPTABLE_SCORE_STABILITY
+            {
+                break;
+            }
+
+            prev_move = *mv;
+            prev_score = *score;
         }
     }
 
