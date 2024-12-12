@@ -122,7 +122,7 @@ impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut str = format!("{}{}", self.from, self.to);
         if let MoveKind::Promotion(piece) | MoveKind::PromotionCapture(piece, _) = self.kind {
-            str.push(piece.into())
+            str.push(char::from(piece).to_ascii_lowercase());
         }
 
         write!(f, "{}", str)

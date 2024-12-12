@@ -97,6 +97,6 @@ impl Position {
     pub fn find_algebraic_move(&self, mv_str: &str) -> Option<Move> {
         let mut moves = self.gen_moves();
 
-        moves.find(|&mv| mv.to_string() == mv_str)
+        moves.find(|&mv| mv.to_string() == mv_str.to_ascii_lowercase())
     }
 }
