@@ -15,6 +15,7 @@ use std::{
 };
 
 use crate::{
+    perft::perft_divide,
     piece::Colour::*,
     position::{Position, STARTING_FEN},
     search::{root_search, Nodes, Ply, SearchInfo},
@@ -53,6 +54,15 @@ pub fn uci_loop() -> io::Result<()> {
                 Some("ponderhit") => todo!(),
                 Some("draw") => println!("{}\n{}", pos.draw_board(), pos.write_fen()),
                 Some("quit") => break 'running,
+                Some("perft") => perft_divide(
+                    &mut pos,
+                    tokens.next().and_then(|s| s.parse::<Ply>().ok()).unwrap(),
+                ),
+                Some("move") => {
+                    if let Some(mv) = tokens.next().and_then(|s| pos.find_algebraic_move(s)) {
+                        pos.make_move(mv);
+                    }
+                }
                 _ => (),
             }
         }
@@ -104,7 +114,7 @@ fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
             "btime" => black_time = parse_duration(&mut tokens),
             "winc" => white_increment = parse_duration(&mut tokens),
             "binc" => black_increment = parse_duration(&mut tokens),
-            "movestogo" => moves_to_go = tokens.next().and_then(|s| s.parse::<u8>().ok()).unwrap(),
+            "movestogo" => moves_to_go = tokens.next().and_then(|s| s.parse::<Ply>().ok()).unwrap(),
             "movetime" => timer.set(parse_duration(&mut tokens)),
             "depth" => info.max_depth = tokens.next().and_then(|s| s.parse::<Ply>().ok()).unwrap(),
             "nodes" => {

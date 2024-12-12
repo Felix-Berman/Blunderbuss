@@ -12,6 +12,7 @@ mod position;
 mod search;
 mod square;
 mod uci;
+mod zobrist;
 
 fn main() {
     match uci_loop() {

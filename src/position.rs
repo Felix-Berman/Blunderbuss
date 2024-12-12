@@ -24,6 +24,7 @@ pub struct Position {
     pub ep_bb: Bitboard,
     pub halfmove_clk: Ply,
     pub ply: Ply,
+    pub hash: u64,
 }
 
 impl Position {
@@ -36,6 +37,7 @@ impl Position {
             ep_bb: Bitboard::EMPTY,
             halfmove_clk: 0,
             ply: 0,
+            hash: 0,
         }
     }
 
@@ -165,6 +167,8 @@ impl Position {
 
         self.ply = 2 * (fullmove_clk + self.active_colour as Ply - 1);
 
+        self.hash = self.gen_zobrist_hash();
+
         Ok(())
     }
 
@@ -265,6 +269,10 @@ impl Castling {
 
     pub fn swap_colours(&mut self) {
         self.0 = (self.0 & 0b1010) >> 1 | (self.0 & 0b0101) << 1;
+    }
+
+    pub fn bits(&self) -> u8 {
+        self.0
     }
 }
 

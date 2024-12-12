@@ -3,7 +3,7 @@ use crate::{
     evaluate::evaluate,
     move_types::{Move, MoveKind::*, MoveList},
     movegen::{bishop_attacks, rook_attacks},
-    piece::Piece::*,
+    piece::{Colour::*, Piece::*},
     position::Position,
 };
 use std::{
@@ -29,6 +29,7 @@ pub const MAX_DEPTH: Ply = 64;
 const PV_TBL_SIZE: usize = MAX_DEPTH as usize * (MAX_DEPTH as usize + 1);
 const ACCEPTABLE_BEST_MOVE_VARATION: f32 = 0.25;
 const ACCEPTABLE_SCORE_STABILITY: f32 = 0.8;
+const DELTA_MARGIN: Score = 200;
 
 pub struct SearchInfo {
     pub ply: Ply,
@@ -274,6 +275,11 @@ fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut Search
     if standing_pat >= beta {
         return beta;
     }
+
+    // if standing_pat + Queen(White).value() < alpha {
+    //     return alpha;
+    // }
+
     if alpha < standing_pat {
         alpha = standing_pat;
     }
@@ -286,9 +292,21 @@ fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut Search
     let mut moves = MoveList::new();
     pos.gen_captures(&mut moves);
     for mv in moves {
+        // delta pruning
+        // let captured_piece = match mv.kind {
+        //     Capture(piece) | PromotionCapture(_, piece) => piece,
+        //     EnPassant => Pawn(!pos.active_colour),
+        //     _ => unreachable!(),
+        // };
+        // if standing_pat + captured_piece.value() + DELTA_MARGIN < alpha {
+        //     continue;
+        // }
+
+        // SEE pruning
         if !swap_off(&pos, mv) {
             continue;
         }
+
         let mut next_pos = pos;
         next_pos.make_move(mv);
         if next_pos.is_check(!next_pos.active_colour) {
