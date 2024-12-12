@@ -84,7 +84,7 @@ pub fn pawn_captures(bb: Bitboard, side: Colour, opponent: Bitboard) -> [(Bitboa
     }
 }
 
-fn rook_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
+pub fn rook_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
     occ &= MAGICS.rook_magics[sq as usize].mask;
     let mut occ = occ * MAGICS.rook_magics[sq as usize].magic;
     occ >>= 64 - ROOK_BITS[sq];
@@ -92,7 +92,7 @@ fn rook_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
     MAGICS.rook_attacks[sq as usize][occ as usize]
 }
 
-fn bishop_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
+pub fn bishop_attacks(sq: Square, mut occ: Bitboard) -> Bitboard {
     occ &= MAGICS.bishop_magics[sq as usize].mask;
     let mut occ = occ * MAGICS.bishop_magics[sq as usize].magic;
     occ >>= 64 - BISHOP_BITS[sq];
@@ -116,6 +116,26 @@ impl Position {
                 .intersects(&(self.pieces[Bishop(side)] | self.pieces[Queen(side)]))
             || rook_attacks(sq, self.occupied())
                 .intersects(&(self.pieces[Rook(side)] | self.pieces[Queen(side)]))
+    }
+
+    pub fn square_attackers(&self, sq: Square, occ: Bitboard) -> Bitboard {
+        let pieces = &self.pieces;
+        let mut attackers = pawn_attacks(Bitboard::from(sq), White) & pieces[Pawn(Black)];
+        attackers |= pawn_attacks(Bitboard::from(sq), Black) & pieces[Pawn(White)];
+        attackers |= knight_attacks(sq) & (pieces[Knight(White)] | pieces[Knight(Black)]);
+        attackers |= bishop_attacks(sq, occ)
+            & (pieces[Bishop(White)]
+                | pieces[Bishop(Black)]
+                | pieces[Queen(White)]
+                | pieces[Queen(Black)]);
+        attackers |= rook_attacks(sq, occ)
+            & (pieces[Rook(White)]
+                | pieces[Rook(Black)]
+                | pieces[Queen(White)]
+                | pieces[Queen(Black)]);
+        attackers |= king_attacks(sq) & (pieces[King(White)] | pieces[King(Black)]);
+
+        attackers
     }
 
     pub fn is_check(&self, side: Colour) -> bool {

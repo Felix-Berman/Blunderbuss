@@ -85,6 +85,23 @@ impl Position {
         None
     }
 
+    #[allow(dead_code)]
+    pub fn flip(&mut self) {
+        for chunk in self.pieces.chunks_mut(2) {
+            chunk.swap(0, 1);
+            chunk.iter_mut().for_each(|bb| bb.flip());
+        }
+
+        for chunk in self.occupancy.chunks_mut(2) {
+            chunk.swap(0, 1);
+            chunk.iter_mut().for_each(|bb| bb.flip());
+        }
+
+        self.active_colour = !self.active_colour;
+        self.castling.swap_colours();
+        self.ep_bb.flip();
+    }
+
     pub fn read_fen(&mut self, fen: &str) -> Result<(), String> {
         self.reset();
         let mut fen_iter = fen.split_whitespace();
@@ -244,6 +261,10 @@ impl Castling {
 
     pub fn is_available(&self, castling: Castling) -> bool {
         self.0 & castling.0 != 0
+    }
+
+    pub fn swap_colours(&mut self) {
+        self.0 = (self.0 & 0b1010) >> 1 | (self.0 & 0b0101) << 1;
     }
 }
 

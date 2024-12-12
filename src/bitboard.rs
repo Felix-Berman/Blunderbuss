@@ -83,6 +83,10 @@ impl Bitboard {
     pub fn bits(&self) -> u64 {
         self.0
     }
+
+    pub fn flip(&mut self) {
+        self.0 = self.0.swap_bytes();
+    }
 }
 
 impl Iterator for Bitboard {

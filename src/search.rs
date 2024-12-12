@@ -1,6 +1,9 @@
 use crate::{
+    bitboard::Bitboard,
     evaluate::evaluate,
-    move_types::{Move, MoveList},
+    move_types::{Move, MoveKind::*, MoveList},
+    movegen::{bishop_attacks, rook_attacks},
+    piece::{Colour::*, Piece::*},
     position::Position,
 };
 use std::{
@@ -243,6 +246,9 @@ fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut Search
     let mut moves = MoveList::new();
     pos.gen_captures(&mut moves);
     for mv in moves {
+        if !swap_off(&pos, mv) {
+            continue;
+        }
         let mut next_pos = pos;
         next_pos.make_move(mv);
         if next_pos.is_check(!next_pos.active_colour) {
@@ -263,4 +269,168 @@ fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut Search
     }
 
     alpha
+}
+
+// todo: check for pins
+// returns true if the material exchange initiated by a given capture is favourable or equal based
+// on piece value alone
+fn swap_off(pos: &Position, mv: Move) -> bool {
+    let attacker = pos.piece_on(mv.from).unwrap();
+    let target = match mv.kind {
+        Capture(p) => p,
+        PromotionCapture(_, p) => p,
+        EnPassant => return true,
+        _ => panic!("swap off should only consider captures"),
+    };
+
+    let mut swap_score = target.value() - attacker.value();
+    let mut can_take = true;
+    // can take a winning or even exchange
+    if swap_score >= 0 {
+        return can_take;
+    }
+
+    let mut occupied = pos.occupied() ^ Bitboard::from(mv.from);
+    let mut attackers_defenders = pos.square_attackers(mv.to, occupied);
+
+    // players alternately take with least valueable piece. If their swap score is positive they
+    // don't need to make any recapture to come out on top and can stop (break).
+    let mut turn = pos.active_colour;
+    loop {
+        // even trade can be taken
+        if swap_score == 0 {
+            return true;
+        }
+
+        turn = !turn;
+
+        attackers_defenders &= occupied;
+        let attackers = attackers_defenders & pos.occupancy[turn];
+
+        if attackers.is_empty() {
+            break;
+        }
+
+        can_take = !can_take;
+        swap_score = -swap_score;
+
+        // check for attackers in value order
+        if let Some(sq) = (attackers & pos.pieces[Pawn(turn)]).bitscan() {
+            swap_score -= Pawn(turn).value();
+            occupied ^= Bitboard::from(sq);
+
+            attackers_defenders |=
+                bishop_attacks(sq, occupied) & (pos.pieces[Bishop(turn)] | pos.pieces[Queen(turn)]);
+        } else if let Some(sq) = (attackers & pos.pieces[Knight(turn)]).bitscan() {
+            swap_score -= Knight(turn).value();
+            occupied ^= Bitboard::from(sq);
+        } else if let Some(sq) = (attackers & pos.pieces[Bishop(turn)]).bitscan() {
+            swap_score -= Bishop(turn).value();
+            occupied ^= Bitboard::from(sq);
+
+            attackers_defenders |=
+                bishop_attacks(sq, occupied) & (pos.pieces[Bishop(turn)] | pos.pieces[Queen(turn)]);
+        } else if let Some(sq) = (attackers & pos.pieces[Rook(turn)]).bitscan() {
+            swap_score -= Rook(turn).value();
+            occupied ^= Bitboard::from(sq);
+
+            attackers_defenders |=
+                rook_attacks(sq, occupied) & (pos.pieces[Rook(turn)] | pos.pieces[Queen(turn)]);
+        } else if let Some(sq) = (attackers & pos.pieces[Queen(turn)]).bitscan() {
+            swap_score -= Queen(turn).value();
+            occupied ^= Bitboard::from(sq);
+
+            attackers_defenders |=
+                rook_attacks(sq, occupied) & (pos.pieces[Rook(turn)] | pos.pieces[Queen(turn)]);
+            attackers_defenders |=
+                bishop_attacks(sq, occupied) & (pos.pieces[Bishop(turn)] | pos.pieces[Queen(turn)]);
+        } else {
+            // if opponent has any remaining attackers, cannot take with king
+            if attackers_defenders.intersects(&pos.occupancy[!turn]) {
+                can_take = !can_take;
+            }
+
+            break;
+        }
+
+        if swap_score.is_positive() {
+            break;
+        }
+    }
+
+    can_take
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn swap_test_trade() {
+        let mut pos = Position::new();
+        _ = pos.read_fen("8/8/2p5/3p4/4P3/8/8/8 w - - 0 1");
+        let mv = pos.find_algebraic_move("e4d5").unwrap();
+        assert!(swap_off(&pos, mv));
+
+        pos.flip();
+        let mv = pos.find_algebraic_move("e5d4").unwrap();
+        assert!(swap_off(&pos, mv));
+    }
+
+    #[test]
+    fn swap_test_loss() {
+        let mut pos = Position::new();
+        _ = pos.read_fen("8/4n3/8/3p4/8/4N3/8/8 w - - 0 1");
+        let mv = pos.find_algebraic_move("e3d5").unwrap();
+        assert!(!swap_off(&pos, mv));
+
+        pos.flip();
+        let mv = pos.find_algebraic_move("e6d4").unwrap();
+        assert!(!swap_off(&pos, mv));
+    }
+
+    #[test]
+    fn swap_test_win() {
+        let mut pos = Position::new();
+        _ = pos.read_fen("8/4n3/8/3p4/8/4N3/8/3R4 w - - 0 1");
+        let mv = pos.find_algebraic_move("e3d5").unwrap();
+        assert!(swap_off(&pos, mv));
+
+        pos.flip();
+        let mv = pos.find_algebraic_move("e6d4").unwrap();
+        assert!(swap_off(&pos, mv));
+    }
+
+    #[test]
+    fn swap_test_xray() {
+        let mut pos = Position::new();
+        _ = pos.read_fen("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - 0 1");
+        let mv = pos.find_algebraic_move("d3e5").unwrap();
+        assert!(!swap_off(&pos, mv));
+
+        pos.flip();
+        let mv = pos.find_algebraic_move("d6e4").unwrap();
+        assert!(!swap_off(&pos, mv));
+    }
+
+    #[test]
+    fn swap_test_king() {
+        let mut pos = Position::new();
+        _ = pos.read_fen("3q4/3r4/8/2Kp4/8/8/3R4/3Q4 w - - 0 1");
+        let mv = pos.find_algebraic_move("d2d5").unwrap();
+        println!("{}", pos.draw_board());
+        assert!(swap_off(&pos, mv));
+
+        pos.flip();
+        let mv = pos.find_algebraic_move("d7d4").unwrap();
+        assert!(swap_off(&pos, mv));
+
+        _ = pos.read_fen("3q4/3r4/8/2Kpk3/8/8/3R4/3Q4 w - - 0 1");
+        let mv = pos.find_algebraic_move("d2d5").unwrap();
+        assert!(!swap_off(&pos, mv));
+
+        pos.flip();
+        let mv = pos.find_algebraic_move("d7d4").unwrap();
+        assert!(!swap_off(&pos, mv));
+    }
 }

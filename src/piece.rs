@@ -6,6 +6,8 @@ use std::{
 use Colour::*;
 use Piece::*;
 
+use crate::search::Score;
+
 #[allow(dead_code)]
 pub const PIECES: [Piece; 12] = [
     Pawn(White),
@@ -48,6 +50,17 @@ impl Piece {
             Rook(c) => c,
             Queen(c) => c,
             King(c) => c,
+        }
+    }
+
+    pub fn value(&self) -> Score {
+        match *self {
+            Pawn(_) => 100,
+            Knight(_) => 300,
+            Bishop(_) => 350,
+            Rook(_) => 500,
+            Queen(_) => 900,
+            King(_) => 0,
         }
     }
 }
