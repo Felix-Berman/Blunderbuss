@@ -214,10 +214,13 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
 
         let time = inner_timer.elapsed();
         let mate_in = CHECKMATE - best_score.abs();
-        let score = if mate_in <= depth as i32 {
-            format!("mate {}", best_score.signum() * (mate_in + 1) / 2)
+        let (score, mate_found) = if mate_in <= depth as i32 {
+            (
+                format!("mate {}", best_score.signum() * (mate_in + 1) / 2),
+                true,
+            )
         } else {
-            format!("cp {}", best_score)
+            (format!("cp {}", best_score), false)
         };
         println!(
             "info depth {} seldepth {} score {} time {} nodes {} nps {} pv{}",
@@ -230,7 +233,7 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
             info.pv,
         );
 
-        if legal_move_count <= 1 {
+        if mate_found || legal_move_count <= 1 {
             break;
         }
 
@@ -240,25 +243,25 @@ pub fn root_search(pos: Position, mut info: SearchInfo) -> Move {
         // todo: break on fluctations between equally good moves (requires multi-pv)
         let mut prev_move = Move::NULL;
         let mut best_move_variations = 0.0;
-        let mut prev_score = 0;
-        for (moves_checked, (mv, score)) in iteration_moves
-            .iter()
-            .zip(iteration_scores.iter())
+        let mut total_score = 0;
+        for (moves_checked, (mv, score)) in (1..=depth)
+            .zip(iteration_moves.iter().zip(iteration_scores.iter()))
             .rev()
-            .enumerate()
         {
             if *mv != prev_move {
                 best_move_variations += 1.0;
             }
 
-            if best_move_variations / (moves_checked as f32 + 1.0) < ACCEPTABLE_BEST_MOVE_VARATION
-                && *score as f32 / prev_score as f32 > ACCEPTABLE_SCORE_STABILITY
+            total_score += score;
+            let average_score = total_score / moves_checked as i32;
+
+            if best_move_variations / (moves_checked as f32) < ACCEPTABLE_BEST_MOVE_VARATION
+                && best_score as f32 / average_score as f32 > ACCEPTABLE_SCORE_STABILITY
             {
                 break;
             }
 
             prev_move = *mv;
-            prev_score = *score;
         }
     }
 
