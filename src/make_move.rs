@@ -31,8 +31,9 @@ impl Position {
             Quiet => (),
             Capture(piece) => {
                 self.pieces[piece] ^= to_bb;
-                self.halfmove_clk = 0;
                 self.occupancy[them] ^= to_bb;
+                self.halfmove_clk = 0;
+                self.last_irreversible_ply = self.ply;
                 self.hash ^= ZOBRIST_CODES.piece(piece, mv.to);
             }
             Promotion(piece) => {
@@ -75,31 +76,43 @@ impl Position {
                 self.pieces[Rook(us)] ^= from_to_bb;
                 self.occupancy[us] ^= from_to_bb;
                 self.hash ^= from_to_bb.fold(0, |acc, sq| acc ^ ZOBRIST_CODES.piece(Rook(us), sq));
+                self.last_irreversible_ply = self.ply;
             }
         }
 
         self.hash ^= ZOBRIST_CODES.castling(self.castling);
         if let King(c) = mv.piece {
-            match c {
-                White => self.castling -= Castling::W_KINGSIDE + Castling::W_QUEENSIDE,
-                Black => self.castling -= Castling::B_KINGSIDE + Castling::B_QUEENSIDE,
+            let castling = match c {
+                White => Castling::W_KINGSIDE + Castling::W_QUEENSIDE,
+                Black => Castling::B_KINGSIDE + Castling::B_QUEENSIDE,
+            };
+
+            if self.castling.is_available(castling) {
+                self.castling -= castling;
+                self.last_irreversible_ply = self.ply;
             }
         }
 
         // remove castling for move from or to rook starting square
         for sq in from_to_bb & Bitboard::ROOKS {
-            match sq {
-                Square::H1 => self.castling -= Castling::W_KINGSIDE,
-                Square::A1 => self.castling -= Castling::W_QUEENSIDE,
-                Square::H8 => self.castling -= Castling::B_KINGSIDE,
-                Square::A8 => self.castling -= Castling::B_QUEENSIDE,
+            let castling = match sq {
+                Square::H1 => Castling::W_KINGSIDE,
+                Square::A1 => Castling::W_QUEENSIDE,
+                Square::H8 => Castling::B_KINGSIDE,
+                Square::A8 => Castling::B_QUEENSIDE,
                 _ => unreachable!(),
+            };
+
+            if self.castling.is_available(castling) {
+                self.castling -= castling;
+                self.last_irreversible_ply = self.ply;
             }
         }
         self.hash ^= ZOBRIST_CODES.castling(self.castling);
 
         if let Pawn(_) = mv.piece {
             self.halfmove_clk = 0;
+            self.last_irreversible_ply = self.ply;
         }
 
         self.active_colour = them;

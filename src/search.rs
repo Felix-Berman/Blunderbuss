@@ -31,6 +31,7 @@ const ACCEPTABLE_BEST_MOVE_VARATION: f32 = 0.25;
 const ACCEPTABLE_SCORE_STABILITY: f32 = 0.8;
 const DELTA_MARGIN: Score = 200;
 
+#[derive(Clone)]
 pub struct SearchInfo {
     pub ply: Ply,
     pub searched_depth: Ply,
@@ -40,6 +41,7 @@ pub struct SearchInfo {
     pub stop: Arc<AtomicBool>,
     pub pv: PrincipleVariation,
     pub allowed_time: Duration,
+    pub history: [u64; Ply::MAX as usize],
 }
 
 impl SearchInfo {
@@ -53,10 +55,12 @@ impl SearchInfo {
             stop,
             pv: PrincipleVariation::new(),
             allowed_time: Duration::ZERO,
+            history: [0; Ply::MAX as usize],
         }
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct PrincipleVariation {
     pub moves: [Move; PV_TBL_SIZE],
     pub length: usize,
@@ -116,6 +120,10 @@ pub fn negamax(
     info.nodes += 1;
     if info.ply > info.searched_depth {
         info.searched_depth += 1;
+    }
+
+    if detect_repetition(&pos, &info) || pos.halfmove_clk >= 100 {
+        return 0;
     }
 
     if depth == 0 {
@@ -276,9 +284,9 @@ fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut Search
         return beta;
     }
 
-    // if standing_pat + Queen(White).value() < alpha {
-    //     return alpha;
-    // }
+    if standing_pat + Queen(White).value() < alpha {
+        return alpha;
+    }
 
     if alpha < standing_pat {
         alpha = standing_pat;
@@ -293,14 +301,14 @@ fn quiescence_search(pos: Position, mut alpha: i32, beta: i32, info: &mut Search
     pos.gen_captures(&mut moves);
     for mv in moves {
         // delta pruning
-        // let captured_piece = match mv.kind {
-        //     Capture(piece) | PromotionCapture(_, piece) => piece,
-        //     EnPassant => Pawn(!pos.active_colour),
-        //     _ => unreachable!(),
-        // };
-        // if standing_pat + captured_piece.value() + DELTA_MARGIN < alpha {
-        //     continue;
-        // }
+        let captured_piece = match mv.kind {
+            Capture(piece) | PromotionCapture(_, piece) => piece,
+            EnPassant => Pawn(!pos.active_colour),
+            _ => unreachable!(),
+        };
+        if standing_pat + captured_piece.value() + DELTA_MARGIN < alpha {
+            continue;
+        }
 
         // SEE pruning
         if !swap_off(&pos, mv) {
@@ -417,6 +425,30 @@ fn swap_off(pos: &Position, mv: Move) -> bool {
     }
 
     can_take
+}
+
+fn detect_repetition(pos: &Position, info: &SearchInfo) -> bool {
+    // repetition not possible if current position is within 4 ply of the most recent irreversible
+    // move
+    if pos.ply - pos.last_irreversible_ply < 4 {
+        return false;
+    }
+
+    let mut repetition_count = 0;
+    // check hash for matches on positions with the same side to move
+    for i in (pos.last_irreversible_ply..(pos.ply - 1)).rev().step_by(2) {
+        if pos.hash == info.history[i as usize] {
+            repetition_count += 1;
+        }
+
+        // a single repetition is enough for nodes further than 2 ply from the root but nodes
+        // within this range require 2 repetitions to prevent evaluating the root move as a draw
+        if (repetition_count == 1 && info.ply > 2) || repetition_count >= 2 {
+            return true;
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]

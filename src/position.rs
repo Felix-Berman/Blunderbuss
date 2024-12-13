@@ -25,6 +25,7 @@ pub struct Position {
     pub halfmove_clk: Ply,
     pub ply: Ply,
     pub hash: u64,
+    pub last_irreversible_ply: Ply,
 }
 
 impl Position {
@@ -38,6 +39,7 @@ impl Position {
             halfmove_clk: 0,
             ply: 0,
             hash: 0,
+            last_irreversible_ply: 0,
         }
     }
 

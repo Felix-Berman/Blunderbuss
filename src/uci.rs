@@ -34,7 +34,8 @@ fn spawn_stdin_channel() -> Receiver<String> {
 pub fn uci_loop() -> io::Result<()> {
     let mut pos = Position::new();
     _ = pos.read_fen(STARTING_FEN);
-    let mut stop = Arc::new(AtomicBool::new(false));
+    let stop = Arc::new(AtomicBool::new(false));
+    let mut info = SearchInfo::new(stop.clone());
     let mut timer = Timer::new();
     let input_channel = spawn_stdin_channel();
 
@@ -48,8 +49,8 @@ pub fn uci_loop() -> io::Result<()> {
                 Some("isready") => println!("readyok"),
                 Some("setoption") => todo!(),
                 Some("ucinewgame") => _ = pos.read_fen(STARTING_FEN),
-                Some("position") => position(tokens, &mut pos),
-                Some("go") => (stop, timer) = go(tokens, pos),
+                Some("position") => position(tokens, &mut pos, &mut info),
+                Some("go") => timer = go(tokens, pos, info.clone()),
                 Some("stop") => stop.store(true, Ordering::Relaxed),
                 Some("ponderhit") => todo!(),
                 Some("draw") => println!("{}\n{}", pos.draw_board(), pos.write_fen()),
@@ -81,24 +82,26 @@ fn id() {
     println!("uciok");
 }
 
-fn position(mut tokens: SplitWhitespace, pos: &mut Position) {
+fn position(mut tokens: SplitWhitespace, pos: &mut Position, info: &mut SearchInfo) {
     _ = match tokens.next() {
         Some("startpos") => pos.read_fen(STARTING_FEN),
         Some("fen") => pos.read_fen(&tokens.clone().take_while(|s| *s != "moves").join(" ")),
         _ => return,
     };
 
+    info.history[0] = pos.hash;
     for string in tokens.skip_while(|s| *s != "moves").skip(1) {
         match pos.find_algebraic_move(string) {
-            Some(mv) => pos.make_move(mv),
+            Some(mv) => {
+                pos.make_move(mv);
+                info.history[pos.ply as usize] = pos.hash;
+            }
             None => println!("invalid move {}", string),
         }
     }
 }
 
-fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
-    let stop = Arc::new(AtomicBool::new(false));
-    let mut info = SearchInfo::new(stop.clone());
+fn go(mut tokens: SplitWhitespace, pos: Position, mut info: SearchInfo) -> Timer {
     let mut white_time = Duration::ZERO;
     let mut black_time = Duration::ZERO;
     let mut white_increment = Duration::ZERO;
@@ -139,12 +142,13 @@ fn go(mut tokens: SplitWhitespace, pos: Position) -> (Arc<AtomicBool>, Timer) {
         timer.set(info.allowed_time);
     }
 
+    info.stop.store(false, Ordering::Relaxed);
     thread::spawn(move || {
         let mv = root_search(pos, info);
         println!("bestmove {}", mv);
     });
 
-    (stop, timer)
+    timer
 }
 
 fn parse_duration(tokens: &mut SplitWhitespace) -> Duration {
