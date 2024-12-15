@@ -135,10 +135,11 @@ fn go(mut tokens: SplitWhitespace, pos: Position, mut info: SearchInfo) -> Timer
             Black => (black_time, black_increment),
         };
 
-        let total_time = time + increment * moves_to_go as u32;
-        let current_move = pos.ply / 2 + 1;
-        let final_move = current_move + moves_to_go;
-        info.allowed_time = total_time.mul_f32(percent_time_for_move(current_move, final_move));
+        // let total_time = time + increment * moves_to_go as u32;
+        // let current_move = pos.ply / 2 + 1;
+        // let final_move = current_move + moves_to_go;
+        // info.allowed_time = total_time.mul_f32(percent_time_for_move(current_move, final_move));
+        info.allowed_time = time / moves_to_go as u32 + increment;
         timer.set(info.allowed_time);
     }
 
